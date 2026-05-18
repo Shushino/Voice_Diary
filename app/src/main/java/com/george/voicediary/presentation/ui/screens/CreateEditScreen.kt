@@ -20,11 +20,17 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.george.voicediary.domain.model.Mood
 import com.george.voicediary.presentation.ui.components.MoodChip
+import com.george.voicediary.presentation.ui.components.RecordingBottomSheet
 import com.george.voicediary.presentation.viewmodel.CreateEditEvent
 import com.george.voicediary.presentation.viewmodel.CreateEditViewModel
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberPermissionState
+import com.google.accompanist.permissions.shouldShowRationale
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, ExperimentalPermissionsApi::class)
 @Composable
 fun CreateEditScreen(
     onNavigateBack: () -> Unit,
@@ -32,7 +38,13 @@ fun CreateEditScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
     var tagInput by remember { mutableStateOf("") }
+    var showRecordingSheet by remember { mutableStateOf(false) }
+
+    val audioPermissionState = rememberPermissionState(android.Manifest.permission.RECORD_AUDIO)
+    var showPermissionRationale by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         viewModel.eventFlow.collectLatest { event ->
@@ -42,7 +54,44 @@ fun CreateEditScreen(
         }
     }
 
+    if (showPermissionRationale) {
+        AlertDialog(
+            onDismissRequest = { showPermissionRationale = false },
+            title = { Text("Permission Required") },
+            text = { Text("Recording voice notes requires access to your microphone.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showPermissionRationale = false
+                    audioPermissionState.launchPermissionRequest()
+                }) {
+                    Text("Try Again")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPermissionRationale = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    if (showRecordingSheet) {
+        state.entryId?.let { id ->
+            RecordingBottomSheet(
+                entryId = id,
+                onDismiss = { showRecordingSheet = false },
+                onSaved = {
+                    showRecordingSheet = false
+                    scope.launch {
+                        snackbarHostState.showSnackbar("Voice note saved.")
+                    }
+                }
+            )
+        }
+    }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text(if (state.entryId == null || state.entryId == -1L) "New Entry" else "Edit Entry") },
@@ -73,7 +122,20 @@ fun CreateEditScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Row {
-                        IconButton(onClick = { Toast.makeText(context, "Coming soon", Toast.LENGTH_SHORT).show() }) {
+                        IconButton(onClick = { 
+                            if (audioPermissionState.status.isGranted) {
+                                if (state.entryId == null || state.entryId == -1L) {
+                                    // Must save first or handle temporary ID
+                                    Toast.makeText(context, "Please save the entry once before recording.", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    showRecordingSheet = true
+                                }
+                            } else if (audioPermissionState.status.shouldShowRationale) {
+                                showPermissionRationale = true
+                            } else {
+                                audioPermissionState.launchPermissionRequest()
+                            }
+                        }) {
                             Icon(Icons.Default.Mic, contentDescription = "Voice Record")
                         }
                         IconButton(onClick = { Toast.makeText(context, "Coming soon", Toast.LENGTH_SHORT).show() }) {
