@@ -4,8 +4,12 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
+import androidx.navigation.NavType
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import com.george.voicediary.presentation.ui.screens.HomeScreen
 import com.george.voicediary.presentation.ui.theme.VoiceDiaryTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -15,7 +19,27 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             VoiceDiaryTheme {
-                Text("Hello")
+                val navController = rememberNavController()
+                NavHost(
+                    navController = navController,
+                    startDestination = "home"
+                ) {
+                    composable("home") {
+                        HomeScreen(
+                            onNavigateToCreate = { navController.navigate("create") },
+                            onNavigateToDetail = { entryId -> navController.navigate("detail/$entryId") }
+                        )
+                    }
+                    composable("create") {
+                        Text("Create")
+                    }
+                    composable(
+                        route = "detail/{entryId}",
+                        arguments = listOf(navArgument("entryId") { type = NavType.LongType })
+                    ) {
+                        Text("Detail")
+                    }
+                }
             }
         }
     }
