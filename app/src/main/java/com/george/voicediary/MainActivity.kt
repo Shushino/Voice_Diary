@@ -43,11 +43,6 @@ class MainActivity : ComponentActivity() {
                             onNavigateBack = { navController.popBackStack() }
                         )
                     }
-                    composable("create") { // Keep simple route for FAB
-                        CreateEditScreen(
-                            onNavigateBack = { navController.popBackStack() }
-                        )
-                    }
                     composable(
                         route = "detail/{entryId}",
                         arguments = listOf(navArgument("entryId") { type = NavType.LongType })
