@@ -61,9 +61,9 @@ dependencies {
     ksp(libs.hilt.compiler)
 
     // Room
-    implementation("androidx.room:room-runtime:2.6.0")
-    implementation("androidx.room:room-ktx:2.6.0")
-    ksp("androidx.room:room-compiler:2.6.0")
+    implementation(libs.room.runtime)
+    implementation(libs.room.ktx)
+    ksp(libs.room.compiler)
 
     // SQLCipher
     implementation("net.zetetic:android-database-sqlcipher:4.5.4")
