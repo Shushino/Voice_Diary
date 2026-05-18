@@ -9,6 +9,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.george.voicediary.presentation.ui.screens.CreateEditScreen
 import com.george.voicediary.presentation.ui.screens.HomeScreen
 import com.george.voicediary.presentation.ui.theme.VoiceDiaryTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -27,11 +28,24 @@ class MainActivity : ComponentActivity() {
                     composable("home") {
                         HomeScreen(
                             onNavigateToCreate = { navController.navigate("create") },
-                            onNavigateToDetail = { entryId -> navController.navigate("detail/$entryId") }
+                            onNavigateToDetail = { entryId -> navController.navigate("create?entryId=$entryId") }
                         )
                     }
-                    composable("create") {
-                        Text("Create")
+                    composable(
+                        route = "create?entryId={entryId}",
+                        arguments = listOf(navArgument("entryId") { 
+                            type = NavType.LongType
+                            defaultValue = -1L
+                        })
+                    ) {
+                        CreateEditScreen(
+                            onNavigateBack = { navController.popBackStack() }
+                        )
+                    }
+                    composable("create") { // Keep simple route for FAB
+                        CreateEditScreen(
+                            onNavigateBack = { navController.popBackStack() }
+                        )
                     }
                     composable(
                         route = "detail/{entryId}",
