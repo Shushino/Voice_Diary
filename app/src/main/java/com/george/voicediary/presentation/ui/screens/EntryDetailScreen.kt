@@ -80,8 +80,10 @@ fun EntryDetailScreen(
                     IconButton(onClick = { Toast.makeText(context, "Sharing coming soon", Toast.LENGTH_SHORT).show() }) {
                         Icon(Icons.Default.Share, contentDescription = "Share")
                     }
-                    IconButton(onClick = { state.entry?.id?.let { onNavigateToEdit(it) } }) {
-                        Icon(Icons.Default.Edit, contentDescription = "Edit")
+                    state.entry?.id?.let { entryId ->
+                        IconButton(onClick = { onNavigateToEdit(entryId) }) {
+                            Icon(Icons.Default.Edit, contentDescription = "Edit")
+                        }
                     }
                     IconButton(onClick = { showDeleteDialog = true }) {
                         Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)

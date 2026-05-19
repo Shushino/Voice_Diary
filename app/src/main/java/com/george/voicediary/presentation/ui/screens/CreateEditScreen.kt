@@ -124,12 +124,12 @@ fun CreateEditScreen(
                     Row {
                         IconButton(onClick = { 
                             if (audioPermissionState.status.isGranted) {
-                                if (state.entryId == null || state.entryId == -1L) {
-                                    // Must save first or handle temporary ID
-                                    Toast.makeText(context, "Please save the entry once before recording.", Toast.LENGTH_SHORT).show()
-                                } else {
-                                    showRecordingSheet = true
-                                }
+                                 scope.launch {
+                                     if (state.entryId == null || state.entryId == -1L) {
+                                         viewModel.saveEntry(autoSave = true)
+                                     }
+                                     showRecordingSheet = true
+                                 }
                             } else if (audioPermissionState.status.shouldShowRationale) {
                                 showPermissionRationale = true
                             } else {

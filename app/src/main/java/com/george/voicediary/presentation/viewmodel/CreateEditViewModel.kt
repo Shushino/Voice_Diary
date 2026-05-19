@@ -33,12 +33,13 @@ class CreateEditViewModel @Inject constructor(
     val eventFlow = _eventFlow.asSharedFlow()
 
     private var autoSaveJob: Job? = null
-    private val entryId: Long? = savedStateHandle.get<Long>("entryId")
+    private val entryId: Long? = savedStateHandle.get<String>("entryId")?.toLongOrNull()
 
     init {
         _state.update { it.copy(entryId = entryId) }
         if (entryId != null && entryId != -1L) {
             loadEntry(entryId)
+            // Skip draft restore for existing entries
         } else {
             checkDraft()
             startAutoSave()
@@ -122,11 +123,11 @@ class CreateEditViewModel @Inject constructor(
         _state.update { it.copy(showDraftRestoredBanner = false) }
     }
 
-    fun saveEntry() {
+    fun saveEntry(autoSave: Boolean = false) {
         viewModelScope.launch {
             val currentState = _state.value
             _state.update { it.copy(isSaving = true) }
-            
+
             val entry = DiaryEntry(
                 id = currentState.entryId ?: 0L,
                 title = currentState.title,
@@ -141,11 +142,16 @@ class CreateEditViewModel @Inject constructor(
             if (currentState.entryId != null && currentState.entryId != -1L) {
                 updateEntryUseCase(entry)
             } else {
-                createEntryUseCase(entry)
-                draftManager.clearDraft()
+                val newEntryId = createEntryUseCase(entry)
+                if (!autoSave) {
+                    draftManager.clearDraft()
+                }
+                _state.update { it.copy(entryId = newEntryId) }
             }
 
-            _eventFlow.emit(CreateEditEvent.Saved)
+            if (!autoSave) {
+                _eventFlow.emit(CreateEditEvent.Saved)
+            }
         }
     }
 

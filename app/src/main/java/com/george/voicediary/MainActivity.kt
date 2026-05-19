@@ -35,8 +35,8 @@ class MainActivity : ComponentActivity() {
                     composable(
                         route = "create?entryId={entryId}",
                         arguments = listOf(navArgument("entryId") { 
-                            type = NavType.LongType
-                            defaultValue = -1L
+                            type = NavType.StringType
+                            defaultValue = "-1L"
                         })
                     ) {
                         CreateEditScreen(
