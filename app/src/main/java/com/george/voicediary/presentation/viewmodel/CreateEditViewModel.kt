@@ -7,6 +7,8 @@ import com.george.voicediary.data.manager.DraftManager
 import com.george.voicediary.data.manager.EntryDraft
 import com.george.voicediary.domain.model.DiaryEntry
 import com.george.voicediary.domain.model.Mood
+import com.george.voicediary.domain.model.VoiceNote
+import com.george.voicediary.domain.usecase.AddVoiceNoteUseCase
 import com.george.voicediary.domain.usecase.CreateEntryUseCase
 import com.george.voicediary.domain.usecase.GetEntryByIdUseCase
 import com.george.voicediary.domain.usecase.UpdateEntryUseCase
@@ -22,6 +24,7 @@ class CreateEditViewModel @Inject constructor(
     private val createEntryUseCase: CreateEntryUseCase,
     private val updateEntryUseCase: UpdateEntryUseCase,
     private val getEntryByIdUseCase: GetEntryByIdUseCase,
+    private val addVoiceNoteUseCase: AddVoiceNoteUseCase,
     private val draftManager: DraftManager,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
@@ -123,11 +126,17 @@ class CreateEditViewModel @Inject constructor(
         _state.update { it.copy(showDraftRestoredBanner = false) }
     }
 
+    fun addVoiceNote(voiceNote: VoiceNote) {
+        viewModelScope.launch {
+            addVoiceNoteUseCase(voiceNote)
+        }
+    }
+
     fun saveEntry(autoSave: Boolean = false) {
         viewModelScope.launch {
             val currentState = _state.value
             _state.update { it.copy(isSaving = true) }
-
+            
             val entry = DiaryEntry(
                 id = currentState.entryId ?: 0L,
                 title = currentState.title,

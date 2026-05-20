@@ -14,9 +14,14 @@ import com.george.voicediary.presentation.ui.screens.EntryDetailScreen
 import com.george.voicediary.presentation.ui.screens.HomeScreen
 import com.george.voicediary.presentation.ui.theme.VoiceDiaryTheme
 import dagger.hilt.android.AndroidEntryPoint
+import com.george.voicediary.data.manager.AudioUploadManager
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    @Inject
+    lateinit var audioUploadManager: AudioUploadManager
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
@@ -40,7 +45,8 @@ class MainActivity : ComponentActivity() {
                         })
                     ) {
                         CreateEditScreen(
-                            onNavigateBack = { navController.popBackStack() }
+                            onNavigateBack = { navController.popBackStack() },
+                            audioUploadManager = audioUploadManager
                         )
                     }
                     composable(

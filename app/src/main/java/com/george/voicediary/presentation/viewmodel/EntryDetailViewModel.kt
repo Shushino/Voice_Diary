@@ -4,6 +4,8 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.george.voicediary.domain.usecase.GetEntryByIdUseCase
+import com.george.voicediary.data.manager.AudioPlayerManager
+import com.george.voicediary.domain.usecase.DeleteVoiceNoteUseCase
 import com.george.voicediary.domain.usecase.GetVoiceNotesForEntryUseCase
 import com.george.voicediary.domain.usecase.SoftDeleteEntryUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -16,6 +18,8 @@ class EntryDetailViewModel @Inject constructor(
     private val getEntryByIdUseCase: GetEntryByIdUseCase,
     private val getVoiceNotesForEntryUseCase: GetVoiceNotesForEntryUseCase,
     private val softDeleteEntryUseCase: SoftDeleteEntryUseCase,
+    private val deleteVoiceNoteUseCase: DeleteVoiceNoteUseCase,
+    val audioPlayerManager: AudioPlayerManager,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -57,5 +61,16 @@ class EntryDetailViewModel @Inject constructor(
                 _eventFlow.emit(EntryDetailEvent.Deleted)
             }
         }
+    }
+
+    fun softDeleteVoiceNote(id: Long) {
+        viewModelScope.launch {
+            audioPlayerManager.release() // Stop any playing audio
+            deleteVoiceNoteUseCase(id)
+        }
+    }
+
+    fun updateVoiceNoteLabel(id: Long, label: String) {
+        // TODO: Implement update voice note label use case
     }
 }

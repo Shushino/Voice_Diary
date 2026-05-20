@@ -19,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.george.voicediary.presentation.ui.components.VoiceNoteCard
 import com.george.voicediary.presentation.viewmodel.EntryDetailEvent
 import com.george.voicediary.presentation.viewmodel.EntryDetailViewModel
 import kotlinx.coroutines.flow.collectLatest
@@ -158,24 +159,15 @@ fun EntryDetailScreen(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     
-                    // Placeholder for Stage 7
                     Column(
                         modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        state.voiceNotes.forEach { _ ->
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .padding(16.dp)
-                                        .fillMaxWidth()
-                                ) {
-                                    Text("Voice Note Card Placeholder")
-                                }
-                            }
+                        state.voiceNotes.forEach { voiceNote ->
+                            VoiceNoteCard(
+                                voiceNote = voiceNote,
+                                onDelete = { viewModel.softDeleteVoiceNote(it.id) }
+                            )
                         }
                     }
                 }
