@@ -50,6 +50,7 @@ fun CreateEditScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+    var showRecordingSheet by remember { mutableStateOf(false) }
 
     val audioLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
@@ -106,8 +107,30 @@ fun CreateEditScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
-            FloatingActionButton(onClick = { audioLauncher.launch(arrayOf("audio/*")) }) {
-                Icon(Icons.Default.AudioFile, contentDescription = "Add Audio")
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                FloatingActionButton(
+                    onClick = {
+                        if (state.entryId == null || state.entryId == -1L) {
+                            viewModel.saveEntry(autoSave = true)
+                            scope.launch {
+                                snackbarHostState.showSnackbar("Saving entry... Try recording in a second.")
+                            }
+                        } else {
+                            showRecordingSheet = true
+                        }
+                    },
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                ) {
+                    Icon(Icons.Default.Mic, contentDescription = "Record Audio")
+                }
+                
+                FloatingActionButton(onClick = { audioLauncher.launch(arrayOf("audio/*")) }) {
+                    Icon(Icons.Default.AudioFile, contentDescription = "Upload Audio")
+                }
             }
         }
     ) { padding ->
@@ -117,6 +140,20 @@ fun CreateEditScreen(
                 .padding(16.dp)
                 .verticalScroll(rememberScrollState())
         ) {
+            if (showRecordingSheet) {
+                state.entryId?.let { id ->
+                    RecordingBottomSheet(
+                        entryId = id,
+                        onDismiss = { showRecordingSheet = false },
+                        onSaved = {
+                            scope.launch {
+                                snackbarHostState.showSnackbar("Recording saved.")
+                            }
+                        }
+                    )
+                }
+            }
+
             OutlinedTextField(
                 value = state.title,
                 onValueChange = { viewModel.onTitleChange(it) },

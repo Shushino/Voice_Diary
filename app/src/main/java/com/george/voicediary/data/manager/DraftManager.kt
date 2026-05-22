@@ -15,7 +15,7 @@ import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
-private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "draft_prefs")
+private val Context.draftDataStore: DataStore<Preferences> by preferencesDataStore(name = "draft_prefs")
 
 data class EntryDraft(
     val title: String,
@@ -34,20 +34,20 @@ class DraftManager @Inject constructor(
         val DRAFT = stringPreferencesKey("entry_draft")
     }
 
-    val draftFlow: Flow<EntryDraft?> = context.dataStore.data.map { preferences ->
+    val draftFlow: Flow<EntryDraft?> = context.draftDataStore.data.map { preferences ->
         preferences[Keys.DRAFT]?.let { json ->
             gson.fromJson(json, EntryDraft::class.java)
         }
     }
 
     suspend fun saveDraft(draft: EntryDraft) {
-        context.dataStore.edit { preferences ->
+        context.draftDataStore.edit { preferences ->
             preferences[Keys.DRAFT] = gson.toJson(draft)
         }
     }
 
     suspend fun clearDraft() {
-        context.dataStore.edit { preferences ->
+        context.draftDataStore.edit { preferences ->
             preferences.remove(Keys.DRAFT)
         }
     }

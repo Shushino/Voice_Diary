@@ -39,7 +39,6 @@ android {
 }
 
 kotlin {
-    jvmToolchain(21)
     compilerOptions {
         jvmTarget.set(JvmTarget.JVM_21)
     }
@@ -95,6 +94,7 @@ dependencies {
 
     // Biometric
     implementation("androidx.biometric:biometric:1.2.0-alpha05")
+    implementation("androidx.appcompat:appcompat:1.6.1")
 
     // Testing
     testImplementation("junit:junit:4.13.2")
