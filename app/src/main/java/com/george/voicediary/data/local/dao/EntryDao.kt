@@ -25,7 +25,7 @@ interface EntryDao {
     @Query("""
         SELECT e.*, (SELECT COUNT(*) FROM voice_notes v WHERE v.entryId = e.id AND v.isDeleted = 0) as voiceNoteCount 
         FROM entries e 
-        WHERE (e.title LIKE '%' || :query || '%' OR e.body LIKE '%' || :query || '%') AND e.isDeleted = 0 
+        WHERE (e.title LIKE '%' || :query || '%' OR e.body LIKE '%' || :query || '%' OR e.tags LIKE '%' || :query || '%') AND e.isDeleted = 0
         ORDER BY e.createdAt DESC
     """)
     fun searchEntries(query: String): Flow<List<EntryWithMetadata>>

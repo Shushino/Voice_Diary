@@ -23,8 +23,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.george.voicediary.domain.model.Mood
+import com.george.voicediary.presentation.ui.components.CalendarView
 import com.george.voicediary.presentation.ui.components.DiaryEntryCard
 import com.george.voicediary.presentation.viewmodel.HomeViewModel
+import com.george.voicediary.presentation.viewmodel.ViewMode
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -81,6 +83,26 @@ fun HomeScreen(
                         IconButton(onClick = { isSearching = true }) {
                             Icon(Icons.Default.Search, contentDescription = "Search")
                         }
+                        
+                        if (state.searchQuery.isEmpty()) {
+                            IconButton(onClick = { viewModel.setViewMode(ViewMode.LIST) }) {
+                                Icon(
+                                    imageVector = Icons.Default.ViewList,
+                                    contentDescription = "List View",
+                                    tint = if (state.viewMode == ViewMode.LIST) MaterialTheme.colorScheme.primary 
+                                           else MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                            IconButton(onClick = { viewModel.setViewMode(ViewMode.CALENDAR) }) {
+                                Icon(
+                                    imageVector = Icons.Default.CalendarMonth,
+                                    contentDescription = "Calendar View",
+                                    tint = if (state.viewMode == ViewMode.CALENDAR) MaterialTheme.colorScheme.primary 
+                                           else MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+
                         IconButton(onClick = onNavigateToSettings) {
                             Icon(Icons.Default.Settings, contentDescription = "Settings")
                         }
@@ -103,24 +125,52 @@ fun HomeScreen(
                 .padding(padding)
                 .fillMaxSize()
         ) {
-            FilterChipRow(
-                selectedMood = state.selectedMoodFilter,
-                onMoodSelected = { viewModel.filterByMood(it) }
-            )
+            if (!isSearching && state.searchQuery.isEmpty()) {
+                FilterChipRow(
+                    selectedMood = state.selectedMoodFilter,
+                    onMoodSelected = { viewModel.filterByMood(it) },
+                    hasVoiceNoteFilter = state.hasVoiceNoteFilter,
+                    onToggleVoiceNoteFilter = { viewModel.toggleHasVoiceNoteFilter() }
+                )
+            }
 
-            if (state.entries.isEmpty() && !state.isLoading) {
-                EmptyState()
-            } else {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 16.dp),
-                    contentPadding = PaddingValues(bottom = 80.dp)
-                ) {
-                    items(state.entries) { entry ->
-                        DiaryEntryCard(
-                            entry = entry,
-                            onClick = { onNavigateToDetail(entry.id) }
+            AnimatedContent(
+                targetState = if (isSearching || state.searchQuery.isNotEmpty()) ViewMode.LIST else state.viewMode,
+                label = "ViewModeAnimation"
+            ) { targetMode ->
+                when (targetMode) {
+                    ViewMode.LIST -> {
+                        if (state.entries.isEmpty() && !state.isLoading) {
+                            if (state.searchQuery.isNotEmpty()) {
+                                SearchEmptyState(state.searchQuery)
+                            } else {
+                                EmptyState()
+                            }
+                        } else {
+                            LazyColumn(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(horizontal = 16.dp),
+                                contentPadding = PaddingValues(bottom = 80.dp)
+                            ) {
+                                items(state.entries) { entry ->
+                                    DiaryEntryCard(
+                                        entry = entry,
+                                        onClick = { onNavigateToDetail(entry.id) }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    ViewMode.CALENDAR -> {
+                        CalendarView(
+                            currentMonth = state.currentMonth,
+                            selectedDate = state.selectedDate,
+                            monthEntryDates = state.monthEntryDates,
+                            entriesOnSelectedDate = state.entriesOnSelectedDate,
+                            onDaySelected = { viewModel.selectDate(it) },
+                            onNavigateMonth = { viewModel.navigateMonth(it) },
+                            onEntryClick = { onNavigateToDetail(it.id) }
                         )
                     }
                 }
@@ -133,7 +183,9 @@ fun HomeScreen(
 @Composable
 fun FilterChipRow(
     selectedMood: Mood?,
-    onMoodSelected: (Mood?) -> Unit
+    onMoodSelected: (Mood?) -> Unit,
+    hasVoiceNoteFilter: Boolean,
+    onToggleVoiceNoteFilter: () -> Unit
 ) {
     LazyRow(
         modifier = Modifier
@@ -156,6 +208,20 @@ fun FilterChipRow(
                 label = { Text("${mood.emoji} ${mood.name.lowercase().replaceFirstChar { it.uppercase() }}") }
             )
         }
+        item {
+            FilterChip(
+                selected = hasVoiceNoteFilter,
+                onClick = onToggleVoiceNoteFilter,
+                label = { Text("Has Voice Note") },
+                leadingIcon = {
+                    Icon(
+                        Icons.Default.Mic,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            )
+        }
     }
 }
 
@@ -173,6 +239,28 @@ fun EmptyState() {
             Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = "Nothing here yet. Start writing.",
+                style = MaterialTheme.typography.bodyLarge,
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+fun SearchEmptyState(query: String) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text = "🔍",
+                fontSize = 80.sp
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "No results for \"$query\"",
                 style = MaterialTheme.typography.bodyLarge,
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
