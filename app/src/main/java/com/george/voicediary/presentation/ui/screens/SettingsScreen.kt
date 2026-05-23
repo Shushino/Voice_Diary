@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.george.voicediary.presentation.viewmodel.SettingsUiState
 import com.george.voicediary.presentation.viewmodel.SettingsViewModel
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
@@ -20,18 +21,15 @@ import com.google.accompanist.permissions.rememberPermissionState
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
-fun SettingsScreen(
+fun SettingsContent(
+    uiState: SettingsUiState,
     onNavigateBack: () -> Unit,
-    viewModel: SettingsViewModel = hiltViewModel()
+    onToggleReminder: (Boolean) -> Unit,
+    onUpdateReminderTime: (Int, Int) -> Unit,
+    isPermissionGranted: Boolean = false,
+    onLaunchPermissionRequest: () -> Unit = {}
 ) {
-    val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
-
-    val notificationPermissionState = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        rememberPermissionState(android.Manifest.permission.POST_NOTIFICATIONS)
-    } else {
-        null
-    }
 
     Scaffold(
         topBar = {
@@ -67,10 +65,10 @@ fun SettingsScreen(
                 Switch(
                     checked = uiState.reminderEnabled,
                     onCheckedChange = { enabled ->
-                        if (enabled && notificationPermissionState != null && !notificationPermissionState.status.isGranted) {
-                            notificationPermissionState.launchPermissionRequest()
+                        if (enabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !isPermissionGranted) {
+                            onLaunchPermissionRequest()
                         } else {
-                            viewModel.toggleReminder(enabled)
+                            onToggleReminder(enabled)
                         }
                     }
                 )
@@ -85,7 +83,7 @@ fun SettingsScreen(
                             TimePickerDialog(
                                 context,
                                 { _, hour, minute ->
-                                    viewModel.updateReminderTime(hour, minute)
+                                    onUpdateReminderTime(hour, minute)
                                 },
                                 uiState.hour,
                                 uiState.minute,
@@ -106,6 +104,30 @@ fun SettingsScreen(
             }
         }
     }
+}
+
+@OptIn(ExperimentalPermissionsApi::class)
+@Composable
+fun SettingsScreen(
+    onNavigateBack: () -> Unit,
+    viewModel: SettingsViewModel = hiltViewModel()
+) {
+    val uiState by viewModel.uiState.collectAsState()
+
+    val notificationPermissionState = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        rememberPermissionState(android.Manifest.permission.POST_NOTIFICATIONS)
+    } else {
+        null
+    }
+
+    SettingsContent(
+        uiState = uiState,
+        onNavigateBack = onNavigateBack,
+        onToggleReminder = { viewModel.toggleReminder(it) },
+        onUpdateReminderTime = { h, m -> viewModel.updateReminderTime(h, m) },
+        isPermissionGranted = notificationPermissionState?.status?.isGranted ?: true,
+        onLaunchPermissionRequest = { notificationPermissionState?.launchPermissionRequest() }
+    )
 
     // Effect to handle permission grant
     if (notificationPermissionState?.status?.isGranted == true && !uiState.reminderEnabled) {

@@ -23,6 +23,7 @@ import com.george.voicediary.presentation.ui.screens.CreateEditScreen
 import com.george.voicediary.presentation.ui.screens.EntryDetailScreen
 import com.george.voicediary.presentation.ui.screens.HomeScreen
 import com.george.voicediary.presentation.ui.screens.LockScreen
+import com.george.voicediary.presentation.ui.screens.SettingsScreen
 import com.george.voicediary.presentation.ui.screens.SetupPinScreen
 import com.george.voicediary.presentation.ui.theme.VoiceDiaryTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -89,7 +90,13 @@ class MainActivity : AppCompatActivity() {
                         composable("home") {
                             HomeScreen(
                                 onNavigateToCreate = { navController.navigate("create") },
-                                onNavigateToDetail = { entryId -> navController.navigate("detail/$entryId") }
+                                onNavigateToDetail = { entryId -> navController.navigate("detail/$entryId") },
+                                onNavigateToSettings = { navController.navigate("settings") }
+                            )
+                        }
+                        composable("settings") {
+                            SettingsScreen(
+                                onNavigateBack = { navController.popBackStack() }
                             )
                         }
                         composable(

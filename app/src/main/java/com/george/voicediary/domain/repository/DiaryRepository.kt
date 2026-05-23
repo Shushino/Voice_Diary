@@ -9,6 +9,7 @@ interface DiaryRepository {
     fun getAllEntries(): Flow<List<DiaryEntry>>
     fun getEntryById(id: Long): Flow<DiaryEntry?>
     fun searchEntries(query: String): Flow<List<DiaryEntry>>
+    fun getEntriesInDateRange(start: Long, end: Long): Flow<List<DiaryEntry>>
     suspend fun createEntry(entry: DiaryEntry): Long
     suspend fun updateEntry(entry: DiaryEntry)
     suspend fun softDeleteEntry(id: Long)

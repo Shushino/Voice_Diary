@@ -33,6 +33,14 @@ interface EntryDao {
     @Query("SELECT * FROM entries WHERE mood = :mood AND isDeleted = 0 ORDER BY createdAt DESC")
     fun getEntriesByMood(mood: String): Flow<List<EntryEntity>>
 
+    @Query("""
+        SELECT e.*, (SELECT COUNT(*) FROM voice_notes v WHERE v.entryId = e.id AND v.isDeleted = 0) as voiceNoteCount 
+        FROM entries e 
+        WHERE e.createdAt >= :start AND e.createdAt <= :end AND e.isDeleted = 0 
+        ORDER BY e.createdAt DESC
+    """)
+    fun getEntriesInDateRange(start: Long, end: Long): Flow<List<EntryWithMetadata>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertEntry(entry: EntryEntity): Long
 

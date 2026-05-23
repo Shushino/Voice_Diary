@@ -45,6 +45,12 @@ class DiaryRepositoryImpl @Inject constructor(
         }
     }
 
+    override fun getEntriesInDateRange(start: Long, end: Long): Flow<List<DiaryEntry>> {
+        return entryDao.getEntriesInDateRange(start, end).map { metadataList ->
+            metadataList.map { it.toDomain() }
+        }
+    }
+
     override suspend fun createEntry(entry: DiaryEntry): Long {
         return entryDao.insertEntry(entry.toEntity())
     }
