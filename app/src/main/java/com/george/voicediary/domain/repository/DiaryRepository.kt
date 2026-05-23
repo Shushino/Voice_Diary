@@ -13,6 +13,11 @@ interface DiaryRepository {
     suspend fun createEntry(entry: DiaryEntry): Long
     suspend fun updateEntry(entry: DiaryEntry)
     suspend fun softDeleteEntry(id: Long)
+    fun getTrashedEntries(): Flow<List<DiaryEntry>>
+    suspend fun hardDeleteEntry(id: Long)
+    suspend fun emptyTrash()
+    suspend fun restoreEntry(id: Long)
+    suspend fun getAllActiveEntriesSync(): List<DiaryEntry>
     fun getVoiceNotesForEntry(entryId: Long): Flow<List<VoiceNote>>
     suspend fun addVoiceNote(voiceNote: VoiceNote)
     suspend fun deleteVoiceNote(id: Long)

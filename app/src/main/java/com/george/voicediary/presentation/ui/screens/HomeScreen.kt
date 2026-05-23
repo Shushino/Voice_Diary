@@ -1,6 +1,8 @@
 package com.george.voicediary.presentation.ui.screens
 
 import androidx.compose.animation.*
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -28,6 +30,13 @@ import com.george.voicediary.presentation.ui.components.DiaryEntryCard
 import com.george.voicediary.presentation.ui.components.WritingStatsCard
 import com.george.voicediary.presentation.viewmodel.HomeViewModel
 import com.george.voicediary.presentation.viewmodel.ViewMode
+
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Spring
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.input.pointer.pointerInput
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -112,10 +121,20 @@ fun HomeScreen(
             )
         },
         floatingActionButton = {
+            val interactionSource = remember { MutableInteractionSource() }
+            val pressed by interactionSource.collectIsPressedAsState()
+            val scale by animateFloatAsState(
+                targetValue = if (pressed) 0.92f else 1f,
+                animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+                label = "FABScale"
+            )
+
             FloatingActionButton(
                 onClick = onNavigateToCreate,
+                interactionSource = interactionSource,
                 containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                modifier = Modifier.scale(scale)
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Add Entry")
             }
@@ -126,7 +145,11 @@ fun HomeScreen(
                 .padding(padding)
                 .fillMaxSize()
         ) {
-            if (!isSearching && state.searchQuery.isEmpty()) {
+            AnimatedVisibility(
+                visible = !isSearching && state.searchQuery.isEmpty() && state.viewMode == ViewMode.LIST,
+                enter = fadeIn() + slideInVertically(),
+                exit = fadeOut() + slideOutVertically()
+            ) {
                 FilterChipRow(
                     selectedMood = state.selectedMoodFilter,
                     onMoodSelected = { viewModel.filterByMood(it) },

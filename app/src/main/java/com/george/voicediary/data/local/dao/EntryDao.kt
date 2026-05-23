@@ -49,4 +49,24 @@ interface EntryDao {
 
     @Query("UPDATE entries SET isDeleted = 1, deletedAt = :deletedAt WHERE id = :id")
     suspend fun softDeleteEntry(id: Long, deletedAt: Long)
+
+    @Query("""
+        SELECT e.*, (SELECT COUNT(*) FROM voice_notes v WHERE v.entryId = e.id AND v.isDeleted = 0) as voiceNoteCount 
+        FROM entries e 
+        WHERE e.isDeleted = 1 
+        ORDER BY e.deletedAt DESC
+    """)
+    fun getTrashedEntries(): Flow<List<EntryWithMetadata>>
+
+    @Query("DELETE FROM entries WHERE id = :id")
+    suspend fun hardDeleteEntry(id: Long)
+
+    @Query("DELETE FROM entries WHERE isDeleted = 1")
+    suspend fun emptyTrash()
+
+    @Query("UPDATE entries SET isDeleted = 0, deletedAt = NULL WHERE id = :id")
+    suspend fun restoreEntry(id: Long)
+
+    @Query("SELECT * FROM entries WHERE isDeleted = 0 ORDER BY createdAt DESC")
+    suspend fun getAllActiveEntriesSync(): List<EntryEntity>
 }

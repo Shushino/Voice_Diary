@@ -30,6 +30,11 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import android.util.Log
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.collectAsState
+import com.george.voicediary.data.SettingsDataStore
+import com.george.voicediary.presentation.ui.screens.*
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
@@ -39,6 +44,9 @@ class MainActivity : AppCompatActivity() {
 
     @Inject
     lateinit var audioUploadManager: AudioUploadManager
+
+    @Inject
+    lateinit var settingsDataStore: SettingsDataStore
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -50,7 +58,10 @@ class MainActivity : AppCompatActivity() {
         }
 
         setContent {
-            VoiceDiaryTheme {
+            val themeMode by settingsDataStore.themeMode.collectAsState(initial = com.george.voicediary.data.ThemeMode.SYSTEM)
+            val fontSize by settingsDataStore.fontSize.collectAsState(initial = com.george.voicediary.data.FontSize.MEDIUM)
+
+            VoiceDiaryTheme(themeMode = themeMode, fontSize = fontSize) {
                 val navController = rememberNavController()
                 var startDestination by remember { mutableStateOf("loading") }
 
@@ -59,7 +70,6 @@ class MainActivity : AppCompatActivity() {
                         startDestination = if (lockManager.isPinSet()) "lock" else "setup_pin"
                     } catch (e: Exception) {
                         Log.e("MainActivity", "Crash in LaunchedEffect", e)
-                        // Fallback to home or a safe screen in case of crash
                         startDestination = "home"
                     }
                 }
@@ -67,22 +77,17 @@ class MainActivity : AppCompatActivity() {
                 if (startDestination != "loading") {
                     NavHost(
                         navController = navController,
-                        startDestination = startDestination
+                        startDestination = startDestination,
+                        enterTransition = { fadeIn(animationSpec = tween(300)) },
+                        exitTransition = { fadeOut(animationSpec = tween(300)) },
+                        popEnterTransition = { fadeIn(animationSpec = tween(300)) },
+                        popExitTransition = { fadeOut(animationSpec = tween(300)) }
                     ) {
                         composable("lock") {
                             LockScreen(
                                 onUnlockSuccess = {
                                     navController.navigate("home") {
                                         popUpTo("lock") { inclusive = true }
-                                    }
-                                }
-                            )
-                        }
-                        composable("setup_pin") {
-                            SetupPinScreen(
-                                onSetupSuccess = {
-                                    navController.navigate("home") {
-                                        popUpTo("setup_pin") { inclusive = true }
                                     }
                                 }
                             )
@@ -96,15 +101,50 @@ class MainActivity : AppCompatActivity() {
                         }
                         composable("settings") {
                             SettingsScreen(
+                                onNavigateBack = { navController.popBackStack() },
+                                onNavigateToTrash = { navController.navigate("trash") },
+                                onNavigateToChangePin = { navController.navigate("setup_pin?isChange=true") }
+                            )
+                        }
+                        composable("trash") {
+                            TrashScreen(
                                 onNavigateBack = { navController.popBackStack() }
+                            )
+                        }
+                        composable(
+                            route = "setup_pin?isChange={isChange}",
+                            arguments = listOf(navArgument("isChange") {
+                                type = NavType.BoolType
+                                defaultValue = false
+                            })
+                        ) {
+                            SetupPinScreen(
+                                onSetupSuccess = {
+                                    val isChange = it.arguments?.getBoolean("isChange") ?: false
+                                    if (isChange) {
+                                        navController.popBackStack()
+                                    } else {
+                                        navController.navigate("home") {
+                                            popUpTo("setup_pin") { inclusive = true }
+                                        }
+                                    }
+                                }
+                            )
+                        }
+                        composable("setup_pin") {
+                            SetupPinScreen(
+                                onSetupSuccess = {
+                                    navController.navigate("home") {
+                                        popUpTo("setup_pin") { inclusive = true }
+                                    }
+                                }
                             )
                         }
                         composable(
                             route = "create?entryId={entryId}",
                             arguments = listOf(navArgument("entryId") {
-                                type = NavType.StringType
-                                nullable = true
-                                defaultValue = null
+                                type = NavType.LongType
+                                defaultValue = -1L
                             })
                         ) {
                             CreateEditScreen(

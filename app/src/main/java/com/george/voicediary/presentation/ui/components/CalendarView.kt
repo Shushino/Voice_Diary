@@ -139,6 +139,23 @@ fun CalendarView(
                     }
                 }
             }
+        } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(32.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("📅", fontSize = 64.sp)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "Tap a date to see entries.",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
         }
     }
 }

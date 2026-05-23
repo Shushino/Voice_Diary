@@ -63,6 +63,28 @@ class DiaryRepositoryImpl @Inject constructor(
         entryDao.softDeleteEntry(id, System.currentTimeMillis())
     }
 
+    override fun getTrashedEntries(): Flow<List<DiaryEntry>> {
+        return entryDao.getTrashedEntries().map { metadataList ->
+            metadataList.map { it.toDomain() }
+        }
+    }
+
+    override suspend fun hardDeleteEntry(id: Long) {
+        entryDao.hardDeleteEntry(id)
+    }
+
+    override suspend fun emptyTrash() {
+        entryDao.emptyTrash()
+    }
+
+    override suspend fun restoreEntry(id: Long) {
+        entryDao.restoreEntry(id)
+    }
+
+    override suspend fun getAllActiveEntriesSync(): List<DiaryEntry> {
+        return entryDao.getAllActiveEntriesSync().map { it.toDomainFromEntity() }
+    }
+
     override fun getVoiceNotesForEntry(entryId: Long): Flow<List<VoiceNote>> {
         return voiceNoteDao.getForEntry(entryId).map { entities ->
             entities.map { it.toDomain() }
@@ -89,6 +111,22 @@ class DiaryRepositoryImpl @Inject constructor(
 
     override suspend fun deletePhoto(id: Long) {
         photoDao.delete(id)
+    }
+
+    private fun EntryEntity.toDomainFromEntity(): DiaryEntry {
+        val tagsList: List<String> = gson.fromJson(this.tags, object : TypeToken<List<String>>() {}.type)
+        return DiaryEntry(
+            id = this.id,
+            title = this.title,
+            body = this.body,
+            mood = Mood.valueOf(this.mood),
+            tags = tagsList,
+            createdAt = this.createdAt,
+            updatedAt = this.updatedAt,
+            isDeleted = this.isDeleted,
+            deletedAt = this.deletedAt,
+            voiceNoteCount = 0 // Not available in plain entity, but okay for sync export
+        )
     }
 
     private fun com.george.voicediary.data.local.entity.EntryWithMetadata.toDomain(): DiaryEntry {

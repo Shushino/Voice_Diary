@@ -36,11 +36,11 @@ class CreateEditViewModel @Inject constructor(
     val eventFlow = _eventFlow.asSharedFlow()
 
     private var autoSaveJob: Job? = null
-    private val entryId: Long? = savedStateHandle.get<String>("entryId")?.toLongOrNull()
+    private val entryId: Long? = savedStateHandle.get<Long>("entryId").takeIf { it != -1L }
 
     init {
         _state.update { it.copy(entryId = entryId) }
-        if (entryId != null && entryId != -1L) {
+        if (entryId != null) {
             loadEntry(entryId)
             // Skip draft restore for existing entries
         } else {

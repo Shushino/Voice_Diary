@@ -12,9 +12,13 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+import com.george.voicediary.data.SettingsDataStore
+import kotlinx.coroutines.flow.collectLatest
+
 @HiltViewModel
 class LockViewModel @Inject constructor(
-    private val lockManager: LockManager
+    private val lockManager: LockManager,
+    private val settingsDataStore: SettingsDataStore
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(LockUiState())
@@ -22,7 +26,13 @@ class LockViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            _state.update { it.copy(isPinSet = lockManager.isPinSet(), isBiometricAvailable = lockManager.isBiometricAvailable()) }
+            _state.update { it.copy(isPinSet = lockManager.isPinSet()) }
+        }
+        viewModelScope.launch {
+            settingsDataStore.biometricEnabled.collectLatest { enabled ->
+                val available = lockManager.isBiometricAvailable() && enabled
+                _state.update { it.copy(isBiometricAvailable = available) }
+            }
         }
     }
 

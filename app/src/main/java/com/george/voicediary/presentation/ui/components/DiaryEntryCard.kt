@@ -19,7 +19,13 @@ import com.george.voicediary.domain.model.DiaryEntry
 import java.text.SimpleDateFormat
 import java.util.*
 
-@OptIn(ExperimentalMaterial3Api::class)
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.runtime.*
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.input.pointer.pointerInput
+
 @Composable
 fun DiaryEntryCard(
     entry: DiaryEntry,
@@ -29,11 +35,28 @@ fun DiaryEntryCard(
     val dateFormat = SimpleDateFormat("EEE dd MMM", Locale.getDefault())
     val dateString = dateFormat.format(Date(entry.createdAt))
 
+    var pressed by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(
+        targetValue = if (pressed) 0.97f else 1f,
+        animationSpec = spring(),
+        label = "ScaleAnimation"
+    )
+
     ElevatedCard(
-        onClick = onClick,
         modifier = modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
+            .padding(vertical = 4.dp)
+            .scale(scale)
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onPress = {
+                        pressed = true
+                        tryAwaitRelease()
+                        pressed = false
+                    },
+                    onTap = { onClick() }
+                )
+            },
         shape = RoundedCornerShape(12.dp)
     ) {
         Row(
