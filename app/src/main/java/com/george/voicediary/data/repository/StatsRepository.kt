@@ -1,8 +1,8 @@
 package com.george.voicediary.data.repository
 
-import com.george.voicediary.data.local.dao.EntryDao
 import com.george.voicediary.domain.model.Mood
 import com.george.voicediary.domain.model.WritingStats
+import com.george.voicediary.domain.repository.DiaryRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.time.Instant
@@ -13,11 +13,10 @@ import javax.inject.Singleton
 
 @Singleton
 class StatsRepository @Inject constructor(
-    private val entryDao: EntryDao
+    private val diaryRepository: DiaryRepository
 ) {
     fun getStats(): Flow<WritingStats> {
-        return entryDao.getAllEntries().map { entriesWithMetadata ->
-            val entries = entriesWithMetadata.map { it.entry }
+        return diaryRepository.getAllEntries().map { entries ->
             val totalEntries = entries.size
             
             if (totalEntries == 0) {

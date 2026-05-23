@@ -8,6 +8,7 @@ import android.graphics.pdf.PdfDocument
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PictureAsPdf
@@ -167,8 +168,3 @@ private suspend fun exportEntryAsPdf(context: Context, entry: DiaryEntry) = with
     
     pdfDocument.close()
 }
-
-// Add extension to Modifier for better usage
-private fun Modifier.clickable(onClick: () -> Unit): Modifier = this.then(
-    androidx.compose.foundation.clickable(onClick = onClick)
-)

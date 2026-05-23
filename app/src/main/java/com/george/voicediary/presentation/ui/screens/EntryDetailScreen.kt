@@ -1,6 +1,5 @@
 package com.george.voicediary.presentation.ui.screens
 
-import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -19,10 +18,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.george.voicediary.presentation.ui.components.ExportBottomSheet
 import com.george.voicediary.presentation.ui.components.VoiceNoteCard
 import com.george.voicediary.presentation.viewmodel.EntryDetailEvent
 import com.george.voicediary.presentation.viewmodel.EntryDetailViewModel
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -35,7 +36,10 @@ fun EntryDetailScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showExportSheet by remember { mutableStateOf(false) }
 
     val dateTimeFormat = SimpleDateFormat("EEEE, dd MMMM yyyy · h:mm a", Locale.getDefault())
 
@@ -78,8 +82,8 @@ fun EntryDetailScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { Toast.makeText(context, "Sharing coming soon", Toast.LENGTH_SHORT).show() }) {
-                        Icon(Icons.Default.Share, contentDescription = "Share")
+                    IconButton(onClick = { showExportSheet = true }) {
+                        Icon(Icons.Default.Share, contentDescription = "Export")
                     }
                     state.entry?.id?.let { entryId ->
                         IconButton(onClick = { onNavigateToEdit(entryId) }) {
@@ -91,7 +95,8 @@ fun EntryDetailScreen(
                     }
                 }
             )
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
         state.entry?.let { entry ->
             Column(
@@ -180,6 +185,20 @@ fun EntryDetailScreen(
                 CircularProgressIndicator()
             } else {
                 Text("Entry not found")
+            }
+        }
+
+        if (showExportSheet) {
+            state.entry?.let { entry ->
+                ExportBottomSheet(
+                    entry = entry,
+                    onDismiss = { showExportSheet = false },
+                    onExportComplete = { message ->
+                        scope.launch {
+                            snackbarHostState.showSnackbar(message)
+                        }
+                    }
+                )
             }
         }
     }

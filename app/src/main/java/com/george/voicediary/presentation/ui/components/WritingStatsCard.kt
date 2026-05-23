@@ -25,7 +25,7 @@ import com.george.voicediary.domain.model.WritingStats
 
 fun Mood.color(): Color = when (this) {
     Mood.HAPPY -> Color(0xFFFFD700) // Gold/Yellow
-    Mood.SAD -> Color(0SFF6495ED) // Cornflower Blue
+    Mood.SAD -> Color(0xFF6495ED) // Cornflower Blue
     Mood.CALM -> Color(0xFF90EE90) // Light Green
     Mood.ANGRY -> Color(0xFFFF6347) // Tomato/Red
     Mood.ANXIOUS -> Color(0xFFFF8C00) // Dark Orange

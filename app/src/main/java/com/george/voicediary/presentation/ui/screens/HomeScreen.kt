@@ -25,6 +25,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.george.voicediary.domain.model.Mood
 import com.george.voicediary.presentation.ui.components.CalendarView
 import com.george.voicediary.presentation.ui.components.DiaryEntryCard
+import com.george.voicediary.presentation.ui.components.WritingStatsCard
 import com.george.voicediary.presentation.viewmodel.HomeViewModel
 import com.george.voicediary.presentation.viewmodel.ViewMode
 
@@ -140,19 +141,38 @@ fun HomeScreen(
             ) { targetMode ->
                 when (targetMode) {
                     ViewMode.LIST -> {
-                        if (state.entries.isEmpty() && !state.isLoading) {
-                            if (state.searchQuery.isNotEmpty()) {
-                                SearchEmptyState(state.searchQuery)
-                            } else {
-                                EmptyState()
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 16.dp),
+                            contentPadding = PaddingValues(bottom = 80.dp)
+                        ) {
+                            if (state.searchQuery.isEmpty() && targetMode == ViewMode.LIST) {
+                                item {
+                                    state.writingStats?.let { stats ->
+                                        WritingStatsCard(
+                                            stats = stats,
+                                            expanded = state.statsExpanded,
+                                            onToggle = { viewModel.toggleStatsExpanded() }
+                                        )
+                                    }
+                                }
                             }
-                        } else {
-                            LazyColumn(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(horizontal = 16.dp),
-                                contentPadding = PaddingValues(bottom = 80.dp)
-                            ) {
+
+                            if (state.entries.isEmpty() && !state.isLoading) {
+                                item {
+                                    Box(
+                                        modifier = Modifier.fillParentMaxSize(),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        if (state.searchQuery.isNotEmpty()) {
+                                            SearchEmptyState(state.searchQuery)
+                                        } else {
+                                            EmptyState()
+                                        }
+                                    }
+                                }
+                            } else {
                                 items(state.entries) { entry ->
                                     DiaryEntryCard(
                                         entry = entry,
@@ -227,45 +247,35 @@ fun FilterChipRow(
 
 @Composable
 fun EmptyState() {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = "📖",
-                fontSize = 80.sp
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = "Nothing here yet. Start writing.",
-                style = MaterialTheme.typography.bodyLarge,
-                textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            text = "📖",
+            fontSize = 80.sp
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "Nothing here yet. Start writing.",
+            style = MaterialTheme.typography.bodyLarge,
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
 @Composable
 fun SearchEmptyState(query: String) {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = "🔍",
-                fontSize = 80.sp
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = "No results for \"$query\"",
-                style = MaterialTheme.typography.bodyLarge,
-                textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            text = "🔍",
+            fontSize = 80.sp
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "No results for \"$query\"",
+            style = MaterialTheme.typography.bodyLarge,
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
@@ -273,6 +283,8 @@ fun SearchEmptyState(query: String) {
 @Composable
 fun EmptyStatePreview() {
     MaterialTheme {
-        EmptyState()
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            EmptyState()
+        }
     }
 }

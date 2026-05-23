@@ -2,6 +2,7 @@ package com.george.voicediary.presentation.viewmodel
 
 import com.george.voicediary.domain.model.DiaryEntry
 import com.george.voicediary.domain.model.Mood
+import com.george.voicediary.domain.model.WritingStats
 import java.time.LocalDate
 import java.time.YearMonth
 
@@ -15,5 +16,7 @@ data class HomeUiState(
     val selectedDate: LocalDate? = null,
     val entriesOnSelectedDate: List<DiaryEntry> = emptyList(),
     val monthEntryDates: Set<LocalDate> = emptySet(),
-    val currentMonth: YearMonth = YearMonth.now()
+    val currentMonth: YearMonth = YearMonth.now(),
+    val writingStats: WritingStats? = null,
+    val statsExpanded: Boolean = true
 )

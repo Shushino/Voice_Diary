@@ -6,6 +6,7 @@ import com.george.voicediary.domain.model.DiaryEntry
 import com.george.voicediary.domain.model.Mood
 import com.george.voicediary.domain.usecase.GetAllEntriesUseCase
 import com.george.voicediary.domain.usecase.GetEntriesInDateRangeUseCase
+import com.george.voicediary.domain.usecase.GetStatsUseCase
 import com.george.voicediary.domain.usecase.SearchEntriesUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -24,7 +25,8 @@ import javax.inject.Inject
 class HomeViewModel @Inject constructor(
     private val getAllEntriesUseCase: GetAllEntriesUseCase,
     private val searchEntriesUseCase: SearchEntriesUseCase,
-    private val getEntriesInDateRangeUseCase: GetEntriesInDateRangeUseCase
+    private val getEntriesInDateRangeUseCase: GetEntriesInDateRangeUseCase,
+    private val getStatsUseCase: GetStatsUseCase
 ) : ViewModel() {
 
     private val _searchQuery = MutableStateFlow("")
@@ -35,6 +37,7 @@ class HomeViewModel @Inject constructor(
     private val _selectedDate = MutableStateFlow<LocalDate?>(null)
     private val _currentMonth = MutableStateFlow(YearMonth.now())
     private val _monthEntries = MutableStateFlow<List<DiaryEntry>>(emptyList())
+    private val _statsExpanded = MutableStateFlow(true)
 
     val state = combine(
         listOf(
@@ -54,7 +57,9 @@ class HomeViewModel @Inject constructor(
             _viewMode,
             _selectedDate,
             _currentMonth,
-            _monthEntries
+            _monthEntries,
+            getStatsUseCase(),
+            _statsExpanded
         )
     ) { array ->
         @Suppress("UNCHECKED_CAST")
@@ -68,6 +73,8 @@ class HomeViewModel @Inject constructor(
         val currentMonth = array[7] as YearMonth
         @Suppress("UNCHECKED_CAST")
         val monthEntries = array[8] as List<DiaryEntry>
+        val stats = array[9] as com.george.voicediary.domain.model.WritingStats
+        val statsExpanded = array[10] as Boolean
         
         val filteredEntries = entries.filter { entry ->
             val moodMatch = mood == null || entry.mood == mood
@@ -103,7 +110,9 @@ class HomeViewModel @Inject constructor(
             selectedDate = selectedDate,
             entriesOnSelectedDate = entriesOnSelectedDate,
             monthEntryDates = monthEntryDates,
-            currentMonth = currentMonth
+            currentMonth = currentMonth,
+            writingStats = stats,
+            statsExpanded = statsExpanded
         )
     }.stateIn(
         scope = viewModelScope,
@@ -138,6 +147,10 @@ class HomeViewModel @Inject constructor(
     fun navigateMonth(offset: Int) {
         _currentMonth.value = _currentMonth.value.plusMonths(offset.toLong())
         loadEntriesForMonth(_currentMonth.value)
+    }
+
+    fun toggleStatsExpanded() {
+        _statsExpanded.value = !_statsExpanded.value
     }
 
     fun loadEntriesForMonth(month: YearMonth) {
