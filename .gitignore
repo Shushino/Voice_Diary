@@ -23,3 +23,5 @@ captures/
 # OS files
 .DS_Store
 Thumbs.db
+.kotlin
+.vscode

@@ -65,7 +65,7 @@ I noticed most diary apps don't have proper voice recording built in, so I decid
 ### Build from Source
 1. Clone the repo
    ```bash
-   git clone https://github.com/YOUR_USERNAME/VoiceDiary.git
+   git clone https://github.com/Shushino/Voice_Diary.git
    ```
 2. Open in Android Studio (Hedgehog or newer)
 3. Let Gradle sync
@@ -91,9 +91,9 @@ app/src/main/java/com/george/voicediary/
 └── presentation/
     ├── ui/
     │   ├── components/  # Reusable composables
-    │   └── screens/     # All screens
-    ├── viewmodel/       # ViewModels
-    └── theme/           # Material 3 theme, colors, typography
+    │   ├── screens/     # All screens
+    │   └── theme/       # Material 3 theme, colors, typography
+    └── viewmodel/       # ViewModels
 ```
 
 ---
