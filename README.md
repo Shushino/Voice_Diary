@@ -1,10 +1,10 @@
-# 🎙️ VoiceDiary
+#  VoiceDiary
 
 A private, encrypted voice and text diary app for Android. Write entries, record your thoughts, track your mood, and reflect on your journey — all stored securely on your device.
 
 ---
 
-## 👋 About This Project
+## About This Project:
 
 I'm a 300-level Software Engineering student, and this is my first vibe-coded Android app.
 
@@ -12,7 +12,7 @@ I noticed most diary apps don't have proper voice recording built in, so I decid
 
 ---
 
-## ✨ Features
+## Features:
 
 - **Voice Recording** — Attach voice notes to any diary entry using your microphone
 - **Encrypted Storage** — All entries are encrypted locally with SQLCipher. Your data never leaves your device.
@@ -28,13 +28,7 @@ I noticed most diary apps don't have proper voice recording built in, so I decid
 
 ---
 
-## 📸 Screenshots
-
-<!-- Add screenshots here -->
-
----
-
-## 🛠️ Tech Stack
+## Tech Stack:
 
 | Layer | Technology |
 |---|---|
@@ -62,59 +56,15 @@ I noticed most diary apps don't have proper voice recording built in, so I decid
 2. On your Android device, enable **Install from unknown sources** in Settings
 3. Open the downloaded APK and install
 
-### Build from Source
-1. Clone the repo
-   ```bash
-   git clone https://github.com/Shushino/Voice_Diary.git
-   ```
-2. Open in Android Studio (Hedgehog or newer)
-3. Let Gradle sync
-4. Run on a device or emulator (API 26+)
-
-> **Note:** You will need to create a `local.properties` file with your SDK path. Android Studio does this automatically.
-
 ---
 
-## 📁 Project Structure
-
-```
-app/src/main/java/com/george/voicediary/
-├── data/
-│   ├── local/          # Room database, DAOs, entities
-│   ├── manager/        # NotificationHelper, ReminderScheduler, LockManager
-│   ├── repository/     # Repository implementations
-│   └── worker/         # WorkManager workers
-├── domain/
-│   ├── model/          # DiaryEntry, Mood, WritingStats
-│   ├── repository/     # Repository interfaces
-│   └── usecase/        # Use cases
-└── presentation/
-    ├── ui/
-    │   ├── components/  # Reusable composables
-    │   ├── screens/     # All screens
-    │   └── theme/       # Material 3 theme, colors, typography
-    └── viewmodel/       # ViewModels
-```
-
----
-
-## 🔒 Privacy
-
-VoiceDiary is built with privacy as a core principle:
-- All data is stored **locally on your device** only
-- The database is **encrypted with SQLCipher**
-- No analytics, no ads, no internet connection required
-- No account needed
-
----
-
-## 📄 License
+## License:
 
 This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
 
 ---
 
-## 🙏 Acknowledgements
+## Libraries Used:
 
 Built with the following open source libraries:
 - [Jetpack Compose](https://developer.android.com/jetpack/compose)
