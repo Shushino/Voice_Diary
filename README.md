@@ -74,3 +74,6 @@ Built with the following open source libraries:
 - [ExoPlayer / Media3](https://developer.android.com/media/media3/exoplayer)
 - [WorkManager](https://developer.android.com/topic/libraries/architecture/workmanager)
 - [DataStore](https://developer.android.com/topic/libraries/architecture/datastore)
+
+
+[![RepoRanker](https://reporanker.com/repos/Shushino/Voice_Diary/badge)](https://reporanker.com/repos/Shushino/Voice_Diary)
