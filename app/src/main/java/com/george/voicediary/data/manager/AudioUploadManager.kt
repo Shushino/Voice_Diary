@@ -67,11 +67,15 @@ class AudioUploadManager @Inject constructor(
 
     private fun getAudioDuration(filePath: String): Long {
         val retriever = MediaMetadataRetriever()
-        retriever.setDataSource(filePath)
-        val durationStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
-        val duration = durationStr?.toLongOrNull() ?: 0L
-        retriever.release()
-        return duration
+        return try {
+            retriever.setDataSource(filePath)
+            val durationStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
+            durationStr?.toLongOrNull() ?: 0L
+        } catch (e: Exception) {
+            0L
+        } finally {
+            retriever.release()
+        }
     }
 
     private fun getFileExtension(mimeType: String): String {

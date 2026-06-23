@@ -11,6 +11,7 @@ import com.george.voicediary.domain.usecase.SearchEntriesUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -38,6 +39,7 @@ class HomeViewModel @Inject constructor(
     private val _currentMonth = MutableStateFlow(YearMonth.now())
     private val _monthEntries = MutableStateFlow<List<DiaryEntry>>(emptyList())
     private val _statsExpanded = MutableStateFlow(true)
+    private var monthLoadJob: Job? = null
 
     val state = combine(
         listOf(
@@ -154,7 +156,8 @@ class HomeViewModel @Inject constructor(
     }
 
     fun loadEntriesForMonth(month: YearMonth) {
-        viewModelScope.launch {
+        monthLoadJob?.cancel()
+        monthLoadJob = viewModelScope.launch {
             val start = month.atDay(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
             val end = month.atEndOfMonth().atTime(23, 59, 59).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
             

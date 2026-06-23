@@ -143,19 +143,30 @@ fun LockScreen(
             )
         }
 
+        if (state.isVerifying) {
+            CircularProgressIndicator(
+                color = Color.White,
+                modifier = Modifier.size(24.dp).padding(top = 8.dp)
+            )
+        }
+
         // NumPad
         NumPad(
+            enabled = !state.isVerifying,
             onDigitEntered = { viewModel.onDigitEntered(it) },
             onDelete = { viewModel.onDelete() }
         )
 
         // Biometric button
         if (state.isBiometricAvailable) {
-            IconButton(onClick = { biometricPrompt.authenticate(promptInfo) }) {
+            IconButton(
+                onClick = { biometricPrompt.authenticate(promptInfo) },
+                enabled = !state.isVerifying
+            ) {
                 Icon(
                     Icons.Default.Fingerprint,
                     contentDescription = "Unlock with fingerprint",
-                    tint = Color.White,
+                    tint = if (state.isVerifying) Color.White.copy(alpha = 0.4f) else Color.White,
                     modifier = Modifier.size(48.dp)
                 )
             }
@@ -165,6 +176,7 @@ fun LockScreen(
 
 @Composable
 fun NumPad(
+    enabled: Boolean,
     onDigitEntered: (Char) -> Unit,
     onDelete: () -> Unit
 ) {
@@ -173,7 +185,10 @@ fun NumPad(
         (1..9).chunked(3).forEach { row ->
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 row.forEach { digit ->
-                    NumPadButton(digit = digit.toString()) { onDigitEntered(it.single()) }
+                    NumPadButton(
+                        digit = digit.toString(),
+                        enabled = enabled
+                    ) { onDigitEntered(it.single()) }
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
@@ -182,8 +197,8 @@ fun NumPad(
         // Digit 0 and delete button
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             Spacer(modifier = Modifier.size(72.dp)) // Empty space for alignment
-            NumPadButton(digit = "0") { onDigitEntered(it.single()) }
-            NumPadButton(icon = Icons.AutoMirrored.Filled.Backspace) { onDelete() }
+            NumPadButton(digit = "0", enabled = enabled) { onDigitEntered(it.single()) }
+            NumPadButton(icon = Icons.AutoMirrored.Filled.Backspace, enabled = enabled) { onDelete() }
         }
     }
 }
@@ -192,13 +207,18 @@ fun NumPad(
 fun NumPadButton(
     digit: String? = null,
     icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
+    enabled: Boolean = true,
     onClick: (String) -> Unit
 ) {
     Button(
         onClick = { onClick(digit ?: "") },
+        enabled = enabled,
         modifier = Modifier.size(72.dp),
         shape = CircleShape,
-        colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.2f))
+        colors = ButtonDefaults.buttonColors(
+            containerColor = Color.White.copy(alpha = 0.2f),
+            disabledContainerColor = Color.White.copy(alpha = 0.1f)
+        )
     ) {
         if (digit != null) {
             Text(

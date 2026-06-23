@@ -18,6 +18,7 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import java.io.File
 import javax.inject.Inject
 
 class DiaryRepositoryImpl @Inject constructor(
@@ -70,10 +71,15 @@ class DiaryRepositoryImpl @Inject constructor(
     }
 
     override suspend fun hardDeleteEntry(id: Long) {
+        deleteVoiceNoteFiles(voiceNoteDao.getVoiceNotesForEntry(id))
         entryDao.hardDeleteEntry(id)
     }
 
     override suspend fun emptyTrash() {
+        val trashedEntryIds = entryDao.getTrashedEntryIds()
+        if (trashedEntryIds.isNotEmpty()) {
+            deleteVoiceNoteFiles(voiceNoteDao.getVoiceNotesForEntries(trashedEntryIds))
+        }
         entryDao.emptyTrash()
     }
 
@@ -220,5 +226,15 @@ class DiaryRepositoryImpl @Inject constructor(
             name = this.name,
             colorHex = this.colorHex
         )
+    }
+
+    private fun deleteVoiceNoteFiles(voiceNotes: List<VoiceNoteEntity>) {
+        voiceNotes.forEach { voiceNote ->
+            try {
+                File(voiceNote.filePath).delete()
+            } catch (_: Exception) {
+                // Ignore missing or inaccessible files during cleanup.
+            }
+        }
     }
 }

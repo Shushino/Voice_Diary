@@ -59,6 +59,7 @@ class CreateEditViewModel @Inject constructor(
                     selectedMood = entry.mood,
                     tags = entry.tags,
                     wordCount = countWords(entry.body),
+                    originalCreatedAt = entry.createdAt,
                     isLoading = false
                 ) }
             }
@@ -136,6 +137,12 @@ class CreateEditViewModel @Inject constructor(
         viewModelScope.launch {
             val currentState = _state.value
             _state.update { it.copy(isSaving = true) }
+            val now = System.currentTimeMillis()
+            val createdAt = if (currentState.entryId != null && currentState.entryId != -1L) {
+                currentState.originalCreatedAt ?: now
+            } else {
+                now
+            }
             
             val entry = DiaryEntry(
                 id = currentState.entryId ?: 0L,
@@ -143,8 +150,8 @@ class CreateEditViewModel @Inject constructor(
                 body = currentState.body,
                 mood = currentState.selectedMood,
                 tags = currentState.tags,
-                createdAt = System.currentTimeMillis(),
-                updatedAt = System.currentTimeMillis(),
+                createdAt = createdAt,
+                updatedAt = now,
                 deletedAt = null
             )
 
@@ -155,7 +162,7 @@ class CreateEditViewModel @Inject constructor(
                 if (!autoSave) {
                     draftManager.clearDraft()
                 }
-                _state.update { it.copy(entryId = newEntryId) }
+                _state.update { it.copy(entryId = newEntryId, originalCreatedAt = createdAt) }
             }
 
             if (!autoSave) {

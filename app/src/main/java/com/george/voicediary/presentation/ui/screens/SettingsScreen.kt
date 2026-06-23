@@ -285,9 +285,4 @@ fun SettingsScreen(
         }
     }
 
-    if (notificationPermissionState?.status?.isGranted == true && !uiState.reminderEnabled) {
-        LaunchedEffect(Unit) {
-            viewModel.toggleReminder(true)
-        }
-    }
 }

@@ -64,6 +64,9 @@ interface EntryDao {
     @Query("DELETE FROM entries WHERE isDeleted = 1")
     suspend fun emptyTrash()
 
+    @Query("SELECT id FROM entries WHERE isDeleted = 1")
+    suspend fun getTrashedEntryIds(): List<Long>
+
     @Query("UPDATE entries SET isDeleted = 0, deletedAt = NULL WHERE id = :id")
     suspend fun restoreEntry(id: Long)
 

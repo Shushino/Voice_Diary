@@ -36,6 +36,7 @@ class SetupPinViewModel @Inject constructor(
                         SetupPinStep.CONFIRM_PIN -> {
                             if (firstPin == _state.value.pinInput) {
                                 lockManager.setPin(firstPin!!)
+                                lockManager.setUnlocked(true)
                                 _state.update { it.copy(pinSetSuccess = true) }
                             } else {
                                 _state.update { it.copy(errorMessage = "PINs do not match. Try again.", pinInput = "") }

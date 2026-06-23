@@ -52,17 +52,19 @@ class LockViewModel @Inject constructor(
     }
 
     fun onBiometricSuccess() {
+        lockManager.setUnlocked(true)
         _state.update { it.copy(isUnlocked = true) }
     }
 
     private fun verifyPin() {
         viewModelScope.launch {
-            delay(200) // Small delay for UI feedback
+            _state.update { it.copy(isVerifying = true) }
             val isCorrect = lockManager.verifyPin(_state.value.pinInput)
             if (isCorrect) {
-                _state.update { it.copy(isUnlocked = true, errorMessage = null) }
+                lockManager.setUnlocked(true)
+                _state.update { it.copy(isUnlocked = true, errorMessage = null, isVerifying = false) }
             } else {
-                _state.update { it.copy(pinInput = "", errorMessage = "Incorrect PIN") }
+                _state.update { it.copy(pinInput = "", errorMessage = "Incorrect PIN", isVerifying = false) }
             }
         }
     }
@@ -77,5 +79,6 @@ data class LockUiState(
     val isUnlocked: Boolean = false,
     val pinInput: String = "",
     val errorMessage: String? = null,
-    val isBiometricAvailable: Boolean = false
+    val isBiometricAvailable: Boolean = false,
+    val isVerifying: Boolean = false
 )

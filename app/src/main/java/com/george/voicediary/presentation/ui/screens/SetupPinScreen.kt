@@ -107,6 +107,7 @@ fun SetupPinScreen(
 
         // NumPad
         NumPad(
+            enabled = !state.pinSetSuccess,
             onDigitEntered = { viewModel.onDigitEntered(it) },
             onDelete = { viewModel.onDelete() }
         )

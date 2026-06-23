@@ -16,7 +16,7 @@ import com.george.voicediary.data.local.entity.VoiceNoteEntity
 @Database(
     entities = [EntryEntity::class, VoiceNoteEntity::class, PhotoEntity::class, TagEntity::class],
     version = 1,
-    exportSchema = false
+    exportSchema = true
 )
 @TypeConverters(GsonTypeConverters::class)
 abstract class DiaryDatabase : RoomDatabase() {

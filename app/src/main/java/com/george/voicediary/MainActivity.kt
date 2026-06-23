@@ -1,6 +1,5 @@
 package com.george.voicediary
 
-import android.app.Application
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.compose.setContent
@@ -12,6 +11,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -52,7 +52,7 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
 
         try {
-            lifecycle.addObserver(AppLifecycleObserver(application, lockManager))
+            lifecycle.addObserver(AppLifecycleObserver(lockManager))
         } catch (e: Exception) {
             Log.e("MainActivity", "Crash during AppLifecycleObserver registration", e)
         }
@@ -70,7 +70,7 @@ class MainActivity : AppCompatActivity() {
                         startDestination = if (lockManager.isPinSet()) "lock" else "setup_pin"
                     } catch (e: Exception) {
                         Log.e("MainActivity", "Crash in LaunchedEffect", e)
-                        startDestination = "home"
+                        startDestination = "setup_pin"
                     }
                 }
 
@@ -131,15 +131,6 @@ class MainActivity : AppCompatActivity() {
                                 }
                             )
                         }
-                        composable("setup_pin") {
-                            SetupPinScreen(
-                                onSetupSuccess = {
-                                    navController.navigate("home") {
-                                        popUpTo("setup_pin") { inclusive = true }
-                                    }
-                                }
-                            )
-                        }
                         composable(
                             route = "create?entryId={entryId}",
                             arguments = listOf(navArgument("entryId") {
@@ -162,6 +153,20 @@ class MainActivity : AppCompatActivity() {
                             )
                         }
                     }
+
+                    val isUnlocked by lockManager.isUnlocked.collectAsStateWithLifecycle()
+
+                    LaunchedEffect(isUnlocked) {
+                        if (!isUnlocked) {
+                            val currentRoute = navController.currentBackStackEntry?.destination?.route
+                            if (currentRoute != null && currentRoute != "lock" && currentRoute != "setup_pin") {
+                                val destination = if (lockManager.isPinSet()) "lock" else "setup_pin"
+                                navController.navigate(destination) {
+                                    popUpTo(0) { inclusive = true }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -169,7 +174,6 @@ class MainActivity : AppCompatActivity() {
 }
 
 class AppLifecycleObserver(
-    private val application: Application,
     private val lockManager: LockManager
 ) : DefaultLifecycleObserver {
     private var lastBackgroundTime: Long = 0L

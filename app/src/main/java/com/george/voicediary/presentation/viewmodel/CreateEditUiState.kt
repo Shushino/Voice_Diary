@@ -11,6 +11,7 @@ data class CreateEditUiState(
     val isSaving: Boolean = false,
     val isLoading: Boolean = false,
     val entryId: Long? = null,
+    val originalCreatedAt: Long? = null,
     val showDraftRestoredBanner: Boolean = false
 )
 
