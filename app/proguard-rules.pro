@@ -48,8 +48,8 @@
 -keep @dagger.hilt.android.AndroidEntryPoint class *
 
 # Your data models
--keep class com.george.voicediary.data.local.entity.** { *; }
--keep class com.george.voicediary.domain.model.** { *; }
+-keep class com.shushino.voicediary.data.local.entity.** { *; }
+-keep class com.shushino.voicediary.domain.model.** { *; }
 
 # Kotlin coroutines
 -keepnames class kotlinx.coroutines.internal.MainDispatcherFactory {}

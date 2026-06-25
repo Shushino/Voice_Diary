@@ -15,15 +15,19 @@ I noticed most diary apps don't have proper voice recording built in, so I decid
 ## Features:
 
 - **Voice Recording** — Attach voice notes to any diary entry using your microphone
+- **Speech-to-Text** — Generate transcripts for your voice recordings (on-device)
 - **Encrypted Storage** — All entries are encrypted locally with SQLCipher. Your data never leaves your device.
 - **PIN & Biometric Lock** — Protect your diary with a PIN and optional fingerprint unlock
 - **Mood Tracking** — Tag entries with a mood and visualise your emotional patterns over time
+- **Photos** — Attach images from your gallery to your diary entries
+- **Color Palettes** — Choose from several color presets (Ocean, Forest, Sunset, Rose, Slate) or use Dynamic Color
 - **Calendar View** — Browse past entries by date on an interactive monthly calendar
 - **Search** — Search across entry titles, body text, and tags instantly
 - **Writing Stats** — Track your total entries, word count, writing streak, and mood distribution
 - **Notifications & Reminders** — Set a daily reminder to write and receive a weekly summary
 - **Themes** — Light, Dark, AMOLED, and System modes with font size options
-- **Export** — Share entries as text, export as PDF, or bulk export all entries as Markdown files in a ZIP archive
+- **Backup & Restore** — Export all data as a `.vdiary` archive and import it back seamlessly
+- **Export** — Share entries as text or export as PDF
 - **Trash** — Deleted entries go to trash first, with restore and permanent delete options
 
 ---
@@ -74,6 +78,8 @@ Built with the following open source libraries:
 - [ExoPlayer / Media3](https://developer.android.com/media/media3/exoplayer)
 - [WorkManager](https://developer.android.com/topic/libraries/architecture/workmanager)
 - [DataStore](https://developer.android.com/topic/libraries/architecture/datastore)
+- [Coil](https://coil-kt.github.io/coil/) (Image loading)
+- [Accompanist](https://google.github.io/accompanist/) (Permissions)
 
 
 [![RepoRanker](https://reporanker.com/repos/Shushino/Voice_Diary/badge)](https://reporanker.com/repos/Shushino/Voice_Diary)

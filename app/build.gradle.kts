@@ -5,23 +5,22 @@ plugins {
     alias(libs.plugins.hilt)
 }
 
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-
 android {
-    namespace = "com.george.voicediary"
+    namespace = "com.shushino.voicediary"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.george.voicediary"
+        applicationId = "com.shushino.voicediary"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "1.0.1"
+        versionCode = 3
+        versionName = "1.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
         release {
+            // TODO: Add signingConfig before publishing APK to GitHub Releases.
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
@@ -30,6 +29,7 @@ android {
             )
         }
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_21
         targetCompatibility = JavaVersion.VERSION_21
@@ -40,13 +40,23 @@ android {
     }
 }
 
+androidComponents {
+    onVariants { variant ->
+        if (variant.buildType == "release") {
+            variant.outputs.forEach { output ->
+                output.outputFileName.set("VoiceDiary.apk")
+            }
+        }
+    }
+}
+
 ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
 }
 
 kotlin {
     compilerOptions {
-        jvmTarget.set(JvmTarget.JVM_21)
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
     }
 }
 
@@ -79,9 +89,12 @@ dependencies {
 
     // ExoPlayer
     implementation(libs.media3.exoplayer)
+    implementation(libs.media3.session)
+    implementation(libs.media3.ui)
 
     // Coroutines
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.kotlinx.coroutines.guava)
 
     // Navigation
     implementation(libs.navigation.compose)
