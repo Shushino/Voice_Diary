@@ -17,6 +17,7 @@ import java.security.KeyStore
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
+import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.IvParameterSpec
 import javax.inject.Singleton
 import android.util.Base64
@@ -95,7 +96,7 @@ object DatabaseModule {
         val iv = Base64.decode(ivBase64, Base64.DEFAULT)
         
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        cipher.init(Cipher.DECRYPT_MODE, getOrCreateKeystoreKey(), IvParameterSpec(iv))
+        cipher.init(Cipher.DECRYPT_MODE, getOrCreateKeystoreKey(), GCMParameterSpec(128, iv))
         return cipher.doFinal(encryptedBytes)
     }
 
