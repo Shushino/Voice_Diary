@@ -25,3 +25,4 @@ captures/
 Thumbs.db
 .kotlin
 .vscode
+settings.gradle.kts
