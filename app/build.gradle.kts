@@ -1,4 +1,4 @@
-plugins {
+﻿plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
@@ -13,14 +13,24 @@ android {
         applicationId = "com.shushino.voicediary"
         minSdk = 26
         targetSdk = 35
-        versionCode = 4
-        versionName = "1.1.1"
+        versionCode = 5
+        versionName = "1.1.2"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
+    signingConfigs {
+        create("release") {
+            // Matches prior GitHub Release APKs (v1.1.1 was Android Debug–signed).
+            storeFile = file(System.getProperty("user.home") + "/.android/debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
 
     buildTypes {
         release {
-            // TODO: Add signingConfig before publishing APK to GitHub Releases.
+            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
@@ -48,7 +58,7 @@ androidComponents {
     onVariants { variant ->
         if (variant.buildType == "release") {
             variant.outputs.forEach { output ->
-                output.outputFileName.set("VoiceDiary.apk")
+                output.outputFileName.set("VoiceDiary-1.1.2.apk")
             }
         }
     }
