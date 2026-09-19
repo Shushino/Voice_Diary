@@ -3,16 +3,11 @@ package com.shushino.voicediary.presentation.viewmodel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.shushino.voicediary.domain.usecase.GetEntryByIdUseCase
 import com.shushino.voicediary.data.manager.AudioPlayerManager
 import com.shushino.voicediary.data.manager.SpeechTranscriptManager
 import com.shushino.voicediary.data.local.dao.VoiceNoteDao
 import com.shushino.voicediary.domain.model.VoiceNote
-import com.shushino.voicediary.domain.usecase.DeleteVoiceNoteUseCase
-import com.shushino.voicediary.domain.usecase.GetPhotosForEntryUseCase
-import com.shushino.voicediary.domain.usecase.GetVoiceNotesForEntryUseCase
-import com.shushino.voicediary.domain.usecase.SoftDeleteEntryUseCase
-import com.shushino.voicediary.domain.usecase.UpdateVoiceNoteLabelUseCase
+import com.shushino.voicediary.domain.repository.DiaryRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -20,12 +15,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class EntryDetailViewModel @Inject constructor(
-    private val getEntryByIdUseCase: GetEntryByIdUseCase,
-    private val getVoiceNotesForEntryUseCase: GetVoiceNotesForEntryUseCase,
-    private val getPhotosForEntryUseCase: GetPhotosForEntryUseCase,
-    private val softDeleteEntryUseCase: SoftDeleteEntryUseCase,
-    private val deleteVoiceNoteUseCase: DeleteVoiceNoteUseCase,
-    private val updateVoiceNoteLabelUseCase: UpdateVoiceNoteLabelUseCase,
+    private val diaryRepository: DiaryRepository,
     private val speechTranscriptManager: SpeechTranscriptManager,
     private val voiceNoteDao: VoiceNoteDao,
     val audioPlayerManager: AudioPlayerManager,
@@ -49,9 +39,9 @@ class EntryDetailViewModel @Inject constructor(
             _state.update { it.copy(isLoading = true) }
             
             combine(
-                getEntryByIdUseCase(id),
-                getVoiceNotesForEntryUseCase(id),
-                getPhotosForEntryUseCase(id)
+                diaryRepository.getEntryById(id),
+                diaryRepository.getVoiceNotesForEntry(id),
+                diaryRepository.getPhotosForEntry(id)
             ) { entry, voiceNotes, photos ->
                 _state.update { 
                     it.copy(
@@ -68,7 +58,7 @@ class EntryDetailViewModel @Inject constructor(
     fun deleteEntry() {
         entryId?.let { id ->
             viewModelScope.launch {
-                softDeleteEntryUseCase(id)
+                diaryRepository.softDeleteEntry(id)
                 _eventFlow.emit(EntryDetailEvent.Deleted)
             }
         }
@@ -77,13 +67,13 @@ class EntryDetailViewModel @Inject constructor(
     fun softDeleteVoiceNote(id: Long) {
         viewModelScope.launch {
             audioPlayerManager.release() // Stop any playing audio
-            deleteVoiceNoteUseCase(id)
+            diaryRepository.deleteVoiceNote(id)
         }
     }
 
     fun updateVoiceNoteLabel(id: Long, label: String) {
         viewModelScope.launch {
-            updateVoiceNoteLabelUseCase(id, label)
+            diaryRepository.updateVoiceNoteLabel(id, label)
         }
     }
 

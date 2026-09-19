@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.shushino.voicediary.data.manager.AudioRecorderManager
 import com.shushino.voicediary.domain.model.VoiceNote
-import com.shushino.voicediary.domain.usecase.AddVoiceNoteUseCase
+import com.shushino.voicediary.domain.repository.DiaryRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -29,7 +29,7 @@ data class RecordingUiState(
 @HiltViewModel
 class RecordingViewModel @Inject constructor(
     private val recorderManager: AudioRecorderManager,
-    private val addVoiceNoteUseCase: AddVoiceNoteUseCase
+    private val diaryRepository: DiaryRepository
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(RecordingUiState())
@@ -70,7 +70,7 @@ class RecordingViewModel @Inject constructor(
         val duration = _state.value.elapsedMs
 
         viewModelScope.launch {
-            addVoiceNoteUseCase(
+            diaryRepository.addVoiceNote(
                 VoiceNote(
                     entryId = entryId,
                     filePath = path,

@@ -1,5 +1,7 @@
 package com.shushino.voicediary.data.repository
 
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import com.shushino.voicediary.data.local.dao.EntryDao
 import com.shushino.voicediary.data.local.dao.PhotoDao
 import com.shushino.voicediary.data.local.dao.VoiceNoteDao
@@ -12,8 +14,6 @@ import com.shushino.voicediary.domain.model.Mood
 import com.shushino.voicediary.domain.model.Photo
 import com.shushino.voicediary.domain.model.VoiceNote
 import com.shushino.voicediary.domain.repository.DiaryRepository
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.io.File
@@ -68,14 +68,21 @@ class DiaryRepositoryImpl @Inject constructor(
     }
 
     override suspend fun hardDeleteEntry(id: Long) {
-        // Files should be deleted by a separate manager or before calling this
+        val voiceNotes = voiceNoteDao.getVoiceNotesForEntry(id)
+        val photos = photoDao.getPhotosForEntry(id)
+        deleteVoiceNoteFiles(voiceNotes)
+        deletePhotoFiles(photos)
         entryDao.hardDeleteEntry(id)
     }
 
     override suspend fun emptyTrash() {
         val trashedIds = entryDao.getTrashedEntryIds()
-        // Here we could also delete files associated with these IDs
-        // For simplicity, we assume the caller handles file cleanup
+        if (trashedIds.isNotEmpty()) {
+            val voiceNotes = voiceNoteDao.getVoiceNotesForEntries(trashedIds)
+            val photos = photoDao.getPhotosForEntries(trashedIds)
+            deleteVoiceNoteFiles(voiceNotes)
+            deletePhotoFiles(photos)
+        }
         entryDao.emptyTrash()
     }
 
@@ -116,7 +123,10 @@ class DiaryRepositoryImpl @Inject constructor(
     }
 
     override suspend fun deletePhoto(id: Long) {
-        // Delete file first?
+        val photo = photoDao.getById(id)
+        if (photo != null) {
+            deletePhotoFiles(listOf(photo))
+        }
         photoDao.delete(id)
     }
 
@@ -132,6 +142,7 @@ class DiaryRepositoryImpl @Inject constructor(
             tags = tagsList,
             createdAt = this.createdAt,
             updatedAt = this.updatedAt,
+            isDeleted = this.isDeleted,
             deletedAt = this.deletedAt
         )
     }
@@ -148,7 +159,9 @@ class DiaryRepositoryImpl @Inject constructor(
             tags = tagsList,
             createdAt = this.entry.createdAt,
             updatedAt = this.entry.updatedAt,
-            deletedAt = this.entry.deletedAt
+            isDeleted = this.entry.isDeleted,
+            deletedAt = this.entry.deletedAt,
+            voiceNoteCount = this.voiceNoteCount
         )
     }
 
@@ -212,25 +225,27 @@ class DiaryRepositoryImpl @Inject constructor(
         )
     }
 
-    private suspend fun deleteVoiceNoteFiles(voiceNotes: List<VoiceNoteEntity>) {
-        voiceNotes.forEach { vn ->
-            try {
-                val file = File(vn.filePath)
-                if (file.exists()) file.delete()
-            } catch (e: Exception) {
-                // Log error
+    companion object {
+        /** Deletes files at the given paths if they exist. Safe for missing/unreadable files. */
+        fun deleteFilesSafely(paths: Iterable<String>) {
+            paths.forEach { path ->
+                try {
+                    val file = File(path)
+                    if (file.exists()) {
+                        file.delete()
+                    }
+                } catch (_: Exception) {
+                    // Best-effort cleanup; DB row removal must still proceed
+                }
             }
         }
     }
 
-    private suspend fun deletePhotoFiles(photos: List<PhotoEntity>) {
-        photos.forEach { p ->
-            try {
-                val file = File(p.filePath)
-                if (file.exists()) file.delete()
-            } catch (e: Exception) {
-                // Log error
-            }
-        }
+    private fun deleteVoiceNoteFiles(voiceNotes: List<VoiceNoteEntity>) {
+        deleteFilesSafely(voiceNotes.map { it.filePath })
+    }
+
+    private fun deletePhotoFiles(photos: List<PhotoEntity>) {
+        deleteFilesSafely(photos.map { it.filePath })
     }
 }

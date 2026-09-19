@@ -2,12 +2,10 @@ package com.shushino.voicediary.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.shushino.voicediary.data.repository.StatsRepository
 import com.shushino.voicediary.domain.model.DiaryEntry
 import com.shushino.voicediary.domain.model.Mood
-import com.shushino.voicediary.domain.usecase.GetAllEntriesUseCase
-import com.shushino.voicediary.domain.usecase.GetEntriesInDateRangeUseCase
-import com.shushino.voicediary.domain.usecase.GetStatsUseCase
-import com.shushino.voicediary.domain.usecase.SearchEntriesUseCase
+import com.shushino.voicediary.domain.repository.DiaryRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
@@ -24,10 +22,8 @@ import javax.inject.Inject
 @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class HomeViewModel @Inject constructor(
-    private val getAllEntriesUseCase: GetAllEntriesUseCase,
-    private val searchEntriesUseCase: SearchEntriesUseCase,
-    private val getEntriesInDateRangeUseCase: GetEntriesInDateRangeUseCase,
-    private val getStatsUseCase: GetStatsUseCase
+    private val diaryRepository: DiaryRepository,
+    private val statsRepository: StatsRepository
 ) : ViewModel() {
 
     private val _searchQuery = MutableStateFlow("")
@@ -47,9 +43,9 @@ class HomeViewModel @Inject constructor(
                 .debounce(300)
                 .flatMapLatest { query ->
                     if (query.isBlank()) {
-                        getAllEntriesUseCase()
+                        diaryRepository.getAllEntries()
                     } else {
-                        searchEntriesUseCase(query)
+                        diaryRepository.searchEntries(query)
                     }
                 },
             _searchQuery,
@@ -60,7 +56,7 @@ class HomeViewModel @Inject constructor(
             _selectedDate,
             _currentMonth,
             _monthEntries,
-            getStatsUseCase(),
+            statsRepository.getStats(),
             _statsExpanded
         )
     ) { array ->
@@ -161,7 +157,7 @@ class HomeViewModel @Inject constructor(
             val start = month.atDay(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
             val end = month.atEndOfMonth().atTime(23, 59, 59).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
             
-            getEntriesInDateRangeUseCase(start, end).collect { entries ->
+            diaryRepository.getEntriesInDateRange(start, end).collect { entries ->
                 _monthEntries.value = entries
             }
         }

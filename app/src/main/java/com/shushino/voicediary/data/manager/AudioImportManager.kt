@@ -11,14 +11,52 @@ import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/**
+ * Validates and copies local audio files (picked via the system file picker)
+ * into app-private storage. This is an import, not a network upload.
+ */
 @Singleton
-class AudioUploadManager @Inject constructor(
+class AudioImportManager @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
 
     companion object {
         private const val MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024 // 50 MB
         const val AUDIO_MIME_TYPE = "audio/*"
+
+        /** Pure validation helpers for unit tests (no Android framework needed). */
+        fun validateMimeType(mimeType: String?): Result<Unit> {
+            if (mimeType == null || !mimeType.startsWith("audio/")) {
+                return Result.failure(IllegalArgumentException("Unsupported file format"))
+            }
+            return Result.success(Unit)
+        }
+
+        fun validateFileSize(fileSize: Long): Result<Unit> {
+            if (fileSize > MAX_FILE_SIZE_BYTES) {
+                return Result.failure(IllegalArgumentException("File too large (max 50MB)"))
+            }
+            return Result.success(Unit)
+        }
+
+        fun getFileExtension(mimeType: String): String {
+            return when (mimeType.lowercase()) {
+                "audio/mpeg" -> "mp3"
+                "audio/mp3" -> "mp3"
+                "audio/aac" -> "m4a"
+                "audio/mp4" -> "m4a"
+                "audio/m4a" -> "m4a"
+                "audio/mp4a-latm" -> "m4a"
+                "audio/wav" -> "wav"
+                "audio/x-wav" -> "wav"
+                "audio/ogg" -> "ogg"
+                "audio/flac" -> "flac"
+                "audio/3gpp" -> "3gp"
+                "audio/amr" -> "amr"
+                "audio/x-m4a" -> "m4a"
+                else -> "m4a"
+            }
+        }
     }
 
     fun validateAndCopyAudioFile(uri: Uri): Result<Pair<String, Long>> {
@@ -26,22 +64,19 @@ class AudioUploadManager @Inject constructor(
             val contentResolver = context.contentResolver
             val mimeType = contentResolver.getType(uri)
 
-            if (mimeType == null || !mimeType.startsWith("audio/")) {
-                return Result.failure(IllegalArgumentException("Unsupported file format"))
-            }
+            validateMimeType(mimeType).getOrThrow()
 
             val fileSize = getFileSize(uri)
-            if (fileSize > MAX_FILE_SIZE_BYTES) {
-                return Result.failure(IllegalArgumentException("File too large (max 50MB)"))
-            }
+            validateFileSize(fileSize).getOrThrow()
 
             val voiceNotesDir = File(context.filesDir, "voicenotes")
             if (!voiceNotesDir.exists()) voiceNotesDir.mkdirs()
 
-            val fileName = "upload_${System.currentTimeMillis()}.${getFileExtension(mimeType)}"
+            val fileName = "import_${System.currentTimeMillis()}.${getFileExtension(mimeType!!)}"
             val destinationFile = File(voiceNotesDir, fileName)
 
-            val inputStream = contentResolver.openInputStream(uri) ?: throw IOException("Failed to open input stream")
+            val inputStream = contentResolver.openInputStream(uri)
+                ?: throw IOException("Failed to open input stream")
             inputStream.use { input ->
                 FileOutputStream(destinationFile).use { outputStream ->
                     input.copyTo(outputStream)
@@ -62,8 +97,7 @@ class AudioUploadManager @Inject constructor(
             } else {
                 0L
             }
-        }
-            ?: 0L
+        } ?: 0L
     }
 
     private fun getAudioDuration(filePath: String): Long {
@@ -76,25 +110,6 @@ class AudioUploadManager @Inject constructor(
             0L
         } finally {
             retriever.release()
-        }
-    }
-
-    private fun getFileExtension(mimeType: String): String {
-        return when (mimeType.lowercase()) {
-            "audio/mpeg" -> "mp3"
-            "audio/mp3" -> "mp3"
-            "audio/aac" -> "m4a"
-            "audio/mp4" -> "m4a"
-            "audio/m4a" -> "m4a"
-            "audio/mp4a-latm" -> "m4a"
-            "audio/wav" -> "wav"
-            "audio/x-wav" -> "wav"
-            "audio/ogg" -> "ogg"
-            "audio/flac" -> "flac"
-            "audio/3gpp" -> "3gp"
-            "audio/amr" -> "amr"
-            "audio/x-m4a" -> "m4a"
-            else -> "m4a"
         }
     }
 }

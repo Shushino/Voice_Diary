@@ -2,7 +2,10 @@ package com.shushino.voicediary.di
 
 import android.app.Application
 import android.content.Context
+import android.util.Base64
 import androidx.room.Room
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.shushino.voicediary.data.local.dao.EntryDao
 import com.shushino.voicediary.data.local.dao.PhotoDao
 import com.shushino.voicediary.data.local.dao.VoiceNoteDao
@@ -10,7 +13,6 @@ import com.shushino.voicediary.data.local.database.DiaryDatabase
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
-import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import net.sqlcipher.database.SupportFactory
 import java.security.KeyStore
@@ -18,9 +20,7 @@ import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
-import javax.crypto.spec.IvParameterSpec
 import javax.inject.Singleton
-import android.util.Base64
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -31,20 +31,34 @@ object DatabaseModule {
     private const val ENCRYPTED_KEY = "encrypted_key"
     private const val KEY_IV = "key_iv"
 
+    /**
+     * v1 (pre-1.1) included a standalone `tags` table; v2 embeds tags as JSON on entries
+     * and dropped TagEntity. Only schema export for v2 exists under app/schemas.
+     * This migration preserves entries/voice_notes/photos when upgrading from v1.
+     */
+    val MIGRATION_1_2 = object : Migration(1, 2) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("DROP TABLE IF EXISTS `tags`")
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDiaryDatabase(app: Application): DiaryDatabase {
         val passphrase = getOrCreateDatabaseKey(app)
         val factory = SupportFactory(passphrase)
-        
+
         return Room.databaseBuilder(
             app,
             DiaryDatabase::class.java,
             "diary_db"
         )
-        .openHelperFactory(factory)
-        .fallbackToDestructiveMigration()
-        .build()
+            .openHelperFactory(factory)
+            .addMigrations(MIGRATION_1_2)
+            // TODO: Prefer real Migration(N, N+1) for any future schema bumps once schemas are exported.
+            // Keep destructive only as a last resort for unexpected/corrupt version jumps.
+            .fallbackToDestructiveMigration(dropAllTables = true)
+            .build()
     }
 
     @Provides
@@ -71,7 +85,7 @@ object DatabaseModule {
         // Generate new 256-bit key
         val key = ByteArray(32)
         java.security.SecureRandom().nextBytes(key)
-        
+
         val (encryptedKey, iv) = encryptDatabaseKey(key)
         prefs.edit()
             .putString(ENCRYPTED_KEY, encryptedKey)
@@ -86,15 +100,15 @@ object DatabaseModule {
         cipher.init(Cipher.ENCRYPT_MODE, getOrCreateKeystoreKey())
         val encryptedBytes = cipher.doFinal(key)
         val iv = cipher.iv
-        
-        return Base64.encodeToString(encryptedBytes, Base64.DEFAULT) to 
-               Base64.encodeToString(iv, Base64.DEFAULT)
+
+        return Base64.encodeToString(encryptedBytes, Base64.DEFAULT) to
+            Base64.encodeToString(iv, Base64.DEFAULT)
     }
 
     private fun decryptDatabaseKey(encryptedKeyBase64: String, ivBase64: String): ByteArray {
         val encryptedBytes = Base64.decode(encryptedKeyBase64, Base64.DEFAULT)
         val iv = Base64.decode(ivBase64, Base64.DEFAULT)
-        
+
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(Cipher.DECRYPT_MODE, getOrCreateKeystoreKey(), GCMParameterSpec(128, iv))
         return cipher.doFinal(encryptedBytes)
@@ -103,7 +117,7 @@ object DatabaseModule {
     private fun getOrCreateKeystoreKey(): SecretKey {
         val keyStore = KeyStore.getInstance("AndroidKeyStore")
         keyStore.load(null)
-        
+
         if (!keyStore.containsAlias(DATABASE_KEY_ALIAS)) {
             val keyGenerator = KeyGenerator.getInstance(
                 android.security.keystore.KeyProperties.KEY_ALGORITHM_AES,
@@ -112,16 +126,16 @@ object DatabaseModule {
             keyGenerator.init(
                 android.security.keystore.KeyGenParameterSpec.Builder(
                     DATABASE_KEY_ALIAS,
-                    android.security.keystore.KeyProperties.PURPOSE_ENCRYPT or 
-                    android.security.keystore.KeyProperties.PURPOSE_DECRYPT
+                    android.security.keystore.KeyProperties.PURPOSE_ENCRYPT or
+                        android.security.keystore.KeyProperties.PURPOSE_DECRYPT
                 )
-                .setBlockModes(android.security.keystore.KeyProperties.BLOCK_MODE_GCM)
-                .setEncryptionPaddings(android.security.keystore.KeyProperties.ENCRYPTION_PADDING_NONE)
-                .build()
+                    .setBlockModes(android.security.keystore.KeyProperties.BLOCK_MODE_GCM)
+                    .setEncryptionPaddings(android.security.keystore.KeyProperties.ENCRYPTION_PADDING_NONE)
+                    .build()
             )
             keyGenerator.generateKey()
         }
-        
+
         return (keyStore.getEntry(DATABASE_KEY_ALIAS, null) as KeyStore.SecretKeyEntry).secretKey
     }
 }
