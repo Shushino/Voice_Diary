@@ -1,8 +1,8 @@
 package com.shushino.voicediary.di
 
 import android.content.Context
+import com.shushino.voicediary.data.manager.AudioImportManager
 import com.shushino.voicediary.data.manager.AudioPlayerManager
-import com.shushino.voicediary.data.manager.AudioUploadManager
 import com.shushino.voicediary.data.manager.SpeechTranscriptManager
 import dagger.Module
 import dagger.Provides
@@ -23,8 +23,8 @@ object ManagerModule {
 
     @Provides
     @Singleton
-    fun provideAudioUploadManager(@ApplicationContext context: Context): AudioUploadManager {
-        return AudioUploadManager(context)
+    fun provideAudioImportManager(@ApplicationContext context: Context): AudioImportManager {
+        return AudioImportManager(context)
     }
 
     @Provides

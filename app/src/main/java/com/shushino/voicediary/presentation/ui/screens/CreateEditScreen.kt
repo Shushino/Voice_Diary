@@ -24,7 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
-import com.shushino.voicediary.data.manager.AudioUploadManager
+import com.shushino.voicediary.data.manager.AudioImportManager
 import com.shushino.voicediary.domain.model.Mood
 import com.shushino.voicediary.domain.model.VoiceNote
 import com.shushino.voicediary.presentation.ui.components.MoodChip
@@ -40,7 +40,7 @@ import kotlinx.coroutines.launch
 fun CreateEditScreen(
     onNavigateBack: () -> Unit,
     viewModel: CreateEditViewModel = hiltViewModel(),
-    audioUploadManager: AudioUploadManager
+    audioImportManager: AudioImportManager
 ) {
     val state by viewModel.state.collectAsState()
     val photos by viewModel.photosForEntry.collectAsState()
@@ -74,7 +74,7 @@ fun CreateEditScreen(
         it?.let { uri ->
             scope.launch {
                 state.entryId?.let { entryId ->
-                    audioUploadManager.validateAndCopyAudioFile(uri).onSuccess { (filePath, duration) ->
+                    audioImportManager.validateAndCopyAudioFile(uri).onSuccess { (filePath, duration) ->
                         viewModel.addVoiceNote(
                             VoiceNote(
                                 entryId = entryId,

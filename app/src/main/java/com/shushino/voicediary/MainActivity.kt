@@ -16,7 +16,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.shushino.voicediary.data.manager.AudioUploadManager
+import com.shushino.voicediary.data.manager.AudioImportManager
 import com.shushino.voicediary.data.manager.LockManager
 import com.shushino.voicediary.presentation.ui.screens.CreateEditScreen
 import com.shushino.voicediary.presentation.ui.screens.EntryDetailScreen
@@ -41,7 +41,7 @@ class MainActivity : AppCompatActivity() {
     lateinit var lockManager: LockManager
 
     @Inject
-    lateinit var audioUploadManager: AudioUploadManager
+    lateinit var audioImportManager: AudioImportManager
 
     @Inject
     lateinit var settingsDataStore: SettingsDataStore
@@ -139,7 +139,7 @@ class MainActivity : AppCompatActivity() {
                         ) {
                             CreateEditScreen(
                                 onNavigateBack = { navController.popBackStack() },
-                                audioUploadManager = audioUploadManager
+                                audioImportManager = audioImportManager
                             )
                         }
                         composable(

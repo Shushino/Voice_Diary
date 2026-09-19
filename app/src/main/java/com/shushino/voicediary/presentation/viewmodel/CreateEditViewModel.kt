@@ -11,7 +11,7 @@ import com.shushino.voicediary.domain.model.DiaryEntry
 import com.shushino.voicediary.domain.model.Mood
 import com.shushino.voicediary.domain.model.Photo
 import com.shushino.voicediary.domain.model.VoiceNote
-import com.shushino.voicediary.domain.usecase.*
+import com.shushino.voicediary.domain.repository.DiaryRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
@@ -25,13 +25,7 @@ import javax.inject.Inject
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class CreateEditViewModel @Inject constructor(
-    private val createEntryUseCase: CreateEntryUseCase,
-    private val updateEntryUseCase: UpdateEntryUseCase,
-    private val getEntryByIdUseCase: GetEntryByIdUseCase,
-    private val addVoiceNoteUseCase: AddVoiceNoteUseCase,
-    private val addPhotoUseCase: AddPhotoUseCase,
-    private val getPhotosForEntryUseCase: GetPhotosForEntryUseCase,
-    private val deletePhotoUseCase: DeletePhotoUseCase,
+    private val diaryRepository: DiaryRepository,
     private val draftManager: DraftManager,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
@@ -47,7 +41,7 @@ class CreateEditViewModel @Inject constructor(
         .distinctUntilChanged()
         .flatMapLatest { id ->
             if (id != null && id != -1L) {
-                getPhotosForEntryUseCase(id)
+                diaryRepository.getPhotosForEntry(id)
             } else {
                 flowOf(emptyList())
             }
@@ -75,7 +69,7 @@ class CreateEditViewModel @Inject constructor(
     private fun loadEntry(id: Long) {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
-            getEntryByIdUseCase(id).firstOrNull()?.let { entry ->
+            diaryRepository.getEntryById(id).firstOrNull()?.let { entry ->
                 _state.update { it.copy(
                     title = entry.title ?: "",
                     body = entry.body,
@@ -152,13 +146,13 @@ class CreateEditViewModel @Inject constructor(
 
     fun addVoiceNote(voiceNote: VoiceNote) {
         viewModelScope.launch {
-            addVoiceNoteUseCase(voiceNote)
+            diaryRepository.addVoiceNote(voiceNote)
         }
     }
 
     fun addPhoto(entryId: Long, filePath: String) {
         viewModelScope.launch {
-            addPhotoUseCase(
+            diaryRepository.addPhoto(
                 Photo(
                     entryId = entryId,
                     filePath = filePath,
@@ -170,7 +164,7 @@ class CreateEditViewModel @Inject constructor(
 
     fun deletePhoto(id: Long) {
         viewModelScope.launch {
-            deletePhotoUseCase(id)
+            diaryRepository.deletePhoto(id)
         }
     }
 
@@ -215,9 +209,9 @@ class CreateEditViewModel @Inject constructor(
             )
 
             if (currentState.entryId != null && currentState.entryId != -1L) {
-                updateEntryUseCase(entry)
+                diaryRepository.updateEntry(entry)
             } else {
-                val newEntryId = createEntryUseCase(entry)
+                val newEntryId = diaryRepository.createEntry(entry)
                 _state.update { it.copy(entryId = newEntryId, originalCreatedAt = createdAt) }
             }
 
