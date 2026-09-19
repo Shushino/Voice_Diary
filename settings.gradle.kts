@@ -11,9 +11,6 @@ dependencyResolutionManagement {
         google()
         mavenCentral()
     }
-    repositories {
-        google()
-    }
 }
 
 rootProject.name = "Voice Diary"
