@@ -31,6 +31,11 @@
 -keepclassmembers,allowobfuscation class * {
     @com.google.gson.annotations.SerializedName <fields>;
 }
+# App code creates anonymous `object : TypeToken<...>() {}` subclasses (DiaryRepositoryImpl
+# tag parsing, BackupManager manifest parsing). R8 strips their generic Signature attribute,
+# so Gson throws "TypeToken must be created with a type argument" and minified release
+# builds crash as soon as any entry is listed or a backup is imported.
+-keep class * extends com.google.gson.reflect.TypeToken { *; }
 
 # Room
 -keep class * extends androidx.room.RoomDatabase
