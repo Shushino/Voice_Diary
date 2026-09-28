@@ -94,6 +94,10 @@ class DiaryRepositoryImpl @Inject constructor(
         return entryDao.getAllActiveEntriesSync().map { it.toDomainFromEntity() }
     }
 
+    override suspend fun getAllEntriesSync(): List<DiaryEntry> {
+        return entryDao.getAllEntriesSync().map { it.toDomainFromEntity() }
+    }
+
     override fun getVoiceNotesForEntry(entryId: Long): Flow<List<VoiceNote>> {
         return voiceNoteDao.getForEntry(entryId).map { list ->
             list.map { it.toDomain() }

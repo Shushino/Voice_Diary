@@ -9,13 +9,17 @@ import com.shushino.voicediary.data.SettingsDataStore
 import com.shushino.voicediary.data.ThemeMode
 import com.shushino.voicediary.data.manager.BackupManager
 import com.shushino.voicediary.data.manager.LockManager
+import com.shushino.voicediary.data.manager.NoEntriesToExportException
 import com.shushino.voicediary.data.manager.ReminderScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -30,6 +34,10 @@ class SettingsViewModel @Inject constructor(
 
     private val _exportStatus = MutableSharedFlow<String>()
     val exportStatus = _exportStatus.asSharedFlow()
+
+    /** True while a backup export/import is running; the UI disables the buttons. */
+    private val _isBackupBusy = MutableStateFlow(false)
+    val isBackupBusy: StateFlow<Boolean> = _isBackupBusy.asStateFlow()
 
     val isPinSet: StateFlow<Boolean> = lockManager.isPinSetFlow
         .stateIn(
@@ -68,7 +76,10 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             settingsDataStore.setReminderEnabled(enabled)
             if (enabled) {
-                reminderScheduler.scheduleDailyReminder(uiState.value.hour, uiState.value.minute)
+                // Read the stored time from DataStore, not the (possibly stale) uiState.
+                val hour = settingsDataStore.reminderHour.first()
+                val minute = settingsDataStore.reminderMinute.first()
+                reminderScheduler.scheduleDailyReminder(hour, minute)
                 reminderScheduler.scheduleWeeklySummary()
             } else {
                 reminderScheduler.cancelAll()
@@ -80,8 +91,11 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             settingsDataStore.setReminderHour(hour)
             settingsDataStore.setReminderMinute(minute)
-            if (uiState.value.reminderEnabled) {
-                reminderScheduler.scheduleDailyReminder(hour, minute)
+            val enabled = settingsDataStore.reminderEnabled.first()
+            if (enabled) {
+                // Re-anchor so the next fire actually lands at the newly chosen time
+                // (UPDATE keeps the original WorkManager period anchor).
+                reminderScheduler.scheduleDailyReminder(hour, minute, reanchor = true)
             }
         }
     }
@@ -110,38 +124,43 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun removePin() {
-        viewModelScope.launch {
-            lockManager.clearPin()
-        }
-    }
-
     fun exportAllEntries(includeAudio: Boolean = true, includeImages: Boolean = true) {
+        if (_isBackupBusy.value) return
+        _isBackupBusy.value = true
         viewModelScope.launch {
-            backupManager.exportAllEntries(includeAudio, includeImages)
-                .onSuccess { count ->
-                    _exportStatus.emit("Exported $count entries to Downloads ✓")
-                }
-                .onFailure { e ->
-                    val message = e.message ?: e.localizedMessage ?: "Export failed"
-                    if (message == "No entries to export") {
-                        _exportStatus.emit(message)
-                    } else {
-                        _exportStatus.emit("Export failed: $message")
+            try {
+                backupManager.exportAllEntries(includeAudio, includeImages)
+                    .onSuccess { count ->
+                        _exportStatus.emit("Exported $count entries to Downloads ✓")
                     }
-                }
+                    .onFailure { e ->
+                        if (e is NoEntriesToExportException) {
+                            _exportStatus.emit(e.message ?: "No entries to export")
+                        } else {
+                            _exportStatus.emit("Export failed: ${e.message ?: e.localizedMessage ?: "unknown error"}")
+                        }
+                    }
+            } finally {
+                _isBackupBusy.value = false
+            }
         }
     }
 
     fun importBackup(uri: Uri) {
+        if (_isBackupBusy.value) return
+        _isBackupBusy.value = true
         viewModelScope.launch {
-            backupManager.importBackup(uri)
-                .onSuccess {
-                    _exportStatus.emit("Import successful ✓")
-                }
-                .onFailure { e ->
-                    _exportStatus.emit("Import failed: ${e.localizedMessage}")
-                }
+            try {
+                backupManager.importBackup(uri)
+                    .onSuccess {
+                        _exportStatus.emit("Import successful ✓")
+                    }
+                    .onFailure { e ->
+                        _exportStatus.emit("Import failed: ${e.localizedMessage}")
+                    }
+            } finally {
+                _isBackupBusy.value = false
+            }
         }
     }
 }

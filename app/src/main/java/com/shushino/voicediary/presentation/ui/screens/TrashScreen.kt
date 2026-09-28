@@ -74,7 +74,7 @@ fun TrashScreen(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(entries) { entry ->
+                items(entries, key = { it.id }) { entry ->
                     TrashEntryCard(
                         entry = entry,
                         onRestore = { viewModel.restoreEntry(entry) },

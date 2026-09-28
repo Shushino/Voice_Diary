@@ -1,4 +1,4 @@
-﻿plugins {
+plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
@@ -13,8 +13,8 @@ android {
         applicationId = "com.shushino.voicediary"
         minSdk = 26
         targetSdk = 35
-        versionCode = 5
-        versionName = "1.1.2"
+        versionCode = 6
+        versionName = "1.1.3"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     signingConfigs {
@@ -58,7 +58,7 @@ androidComponents {
     onVariants { variant ->
         if (variant.buildType == "release") {
             variant.outputs.forEach { output ->
-                output.outputFileName.set("VoiceDiary-1.1.2.apk")
+                output.outputFileName.set("VoiceDiary-1.1.3.apk")
             }
         }
     }

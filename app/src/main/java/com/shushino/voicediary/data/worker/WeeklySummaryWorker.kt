@@ -21,6 +21,15 @@ class WeeklySummaryWorker @AssistedInject constructor(
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
+        return try {
+            showWeeklySummary()
+            Result.success()
+        } catch (e: Exception) {
+            Result.retry()
+        }
+    }
+
+    private suspend fun showWeeklySummary(): Result {
         val calendar = Calendar.getInstance()
         val endTime = calendar.timeInMillis
         calendar.add(Calendar.DAY_OF_YEAR, -7)

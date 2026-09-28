@@ -30,6 +30,9 @@ fun DiaryEntryCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // LazyColumn reuses composables by position when the list changes; without this the
+    // tap handler below would keep calling the PREVIOUS entry's onClick (wrong-entry bug).
+    val currentOnClick by rememberUpdatedState(onClick)
     val dateFormat = SimpleDateFormat("EEE dd MMM", Locale.getDefault())
     val dateString = dateFormat.format(Date(entry.createdAt))
 
@@ -45,14 +48,14 @@ fun DiaryEntryCard(
             .fillMaxWidth()
             .padding(vertical = 4.dp)
             .scale(scale)
-            .pointerInput(Unit) {
+            .pointerInput(entry.id) {
                 detectTapGestures(
                     onPress = {
                         pressed = true
                         tryAwaitRelease()
                         pressed = false
                     },
-                    onTap = { onClick() }
+                    onTap = { currentOnClick() }
                 )
             },
         shape = RoundedCornerShape(12.dp)

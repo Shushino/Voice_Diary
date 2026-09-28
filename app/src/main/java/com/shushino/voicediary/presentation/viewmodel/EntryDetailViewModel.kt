@@ -66,7 +66,7 @@ class EntryDetailViewModel @Inject constructor(
 
     fun softDeleteVoiceNote(id: Long) {
         viewModelScope.launch {
-            audioPlayerManager.release() // Stop any playing audio
+            audioPlayerManager.stopPlayback() // Stop playback but keep the shared player alive
             diaryRepository.deleteVoiceNote(id)
         }
     }
@@ -101,6 +101,6 @@ class EntryDetailViewModel @Inject constructor(
 
     override fun onCleared() {
         super.onCleared()
-        speechTranscriptManager.release()
+        speechTranscriptManager.cancelCurrent()
     }
 }

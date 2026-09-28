@@ -131,7 +131,7 @@ fun CalendarView(
                         .padding(horizontal = 16.dp),
                     contentPadding = PaddingValues(bottom = 80.dp)
                 ) {
-                    items(entriesOnSelectedDate) { entry ->
+                    items(entriesOnSelectedDate, key = { it.id }) { entry ->
                         DiaryEntryCard(
                             entry = entry,
                             onClick = { onEntryClick(entry) }

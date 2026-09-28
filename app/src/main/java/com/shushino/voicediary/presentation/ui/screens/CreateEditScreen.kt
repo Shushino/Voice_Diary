@@ -1,5 +1,6 @@
 package com.shushino.voicediary.presentation.ui.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.PickVisualMediaRequest
@@ -60,8 +61,13 @@ fun CreateEditScreen(
                 }
             } else {
                 state.entryId?.let { entryId ->
-                    viewModel.copyImageToInternal(context, it)?.let { path ->
-                        viewModel.addPhoto(entryId, path)
+                    scope.launch {
+                        val path = viewModel.copyImageToInternal(context, it)
+                        if (path != null) {
+                            viewModel.addPhoto(entryId, path)
+                        } else {
+                            snackbarHostState.showSnackbar("Couldn't add image.")
+                        }
                     }
                 }
             }
@@ -112,6 +118,13 @@ fun CreateEditScreen(
         }
     }
 
+    // On a new entry, Back discards the draft (the banner above promises this); on an
+    // existing entry there is no draft, so Back just leaves.
+    BackHandler(enabled = state.entryId == null || state.entryId == -1L) {
+        viewModel.discardDraft()
+        onNavigateBack()
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -122,7 +135,7 @@ fun CreateEditScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { viewModel.saveEntry() }) {
+                    IconButton(onClick = { viewModel.saveEntry() }, enabled = !state.isSaving) {
                         Icon(Icons.Default.Save, contentDescription = "Save")
                     }
                 }

@@ -43,7 +43,8 @@ fun SettingsContent(
     onNavigateBack: () -> Unit,
     onNavigateToTrash: () -> Unit,
     onNavigateToChangePin: () -> Unit,
-    onRemovePin: () -> Unit,
+    onNavigateToRemovePin: () -> Unit,
+    isBackupBusy: Boolean,
     onToggleReminder: (Boolean) -> Unit,
     onUpdateReminderTime: (Int, Int) -> Unit,
     onThemeSelected: (ThemeMode) -> Unit,
@@ -58,8 +59,30 @@ fun SettingsContent(
     val context = LocalContext.current
     var showLicensesDialog by remember { mutableStateOf(false) }
     var showExportDialog by remember { mutableStateOf(false) }
+    var showRemovePinDialog by remember { mutableStateOf(false) }
     var includeAudio by remember { mutableStateOf(true) }
     var includeImages by remember { mutableStateOf(true) }
+
+    if (showRemovePinDialog) {
+        AlertDialog(
+            onDismissRequest = { showRemovePinDialog = false },
+            title = { Text("Remove PIN?") },
+            text = { Text("Your entries will no longer be locked. You can set a PIN again any time.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showRemovePinDialog = false
+                    onNavigateToRemovePin()
+                }) {
+                    Text("Remove PIN")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRemovePinDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 
     if (showExportDialog) {
         AlertDialog(
@@ -160,10 +183,10 @@ fun SettingsContent(
             // LOCK SECTION
             SettingsSectionHeader("Security")
             ListItem(
-                headlineContent = { Text("Change PIN") },
+                headlineContent = { Text(if (isPinSet) "Change PIN" else "Set PIN") },
                 trailingContent = {
                     OutlinedButton(onClick = onNavigateToChangePin) {
-                        Text("Change")
+                        Text(if (isPinSet) "Change" else "Set")
                     }
                 }
             )
@@ -171,7 +194,7 @@ fun SettingsContent(
                 ListItem(
                     headlineContent = { Text("Remove PIN") },
                     trailingContent = {
-                        OutlinedButton(onClick = onRemovePin) {
+                        OutlinedButton(onClick = { showRemovePinDialog = true }) {
                             Text("Remove")
                         }
                     }
@@ -245,9 +268,9 @@ fun SettingsContent(
             )
             ListItem(
                 headlineContent = { Text("Export all entries") },
-                supportingContent = { Text("Save as .vdiary backup in Downloads") },
+                supportingContent = { Text(if (isBackupBusy) "Working…" else "Save as .vdiary backup in Downloads") },
                 trailingContent = {
-                    OutlinedButton(onClick = { showExportDialog = true }) {
+                    OutlinedButton(onClick = { showExportDialog = true }, enabled = !isBackupBusy) {
                         Text("Export")
                     }
                 }
@@ -256,7 +279,7 @@ fun SettingsContent(
                 headlineContent = { Text("Import backup") },
                 supportingContent = { Text("Restore from .vdiary file") },
                 trailingContent = {
-                    OutlinedButton(onClick = onImportBackup) {
+                    OutlinedButton(onClick = onImportBackup, enabled = !isBackupBusy) {
                         Text("Import")
                     }
                 }
@@ -370,10 +393,12 @@ fun SettingsScreen(
     onNavigateBack: () -> Unit,
     onNavigateToTrash: () -> Unit,
     onNavigateToChangePin: () -> Unit,
+    onNavigateToRemovePin: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val isPinSet by viewModel.isPinSet.collectAsState()
+    val isBackupBusy by viewModel.isBackupBusy.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) {
@@ -386,6 +411,17 @@ fun SettingsScreen(
         rememberPermissionState(android.Manifest.permission.POST_NOTIFICATIONS)
     } else {
         null
+    }
+
+    // If the user flips Daily Reminder on before granting POST_NOTIFICATIONS, remember the
+    // intent and complete the toggle once the system dialog is accepted.
+    var pendingReminderEnable by remember { mutableStateOf(false) }
+    val permissionGranted = notificationPermissionState?.status?.isGranted ?: true
+    LaunchedEffect(permissionGranted) {
+        if (permissionGranted && pendingReminderEnable) {
+            pendingReminderEnable = false
+            viewModel.toggleReminder(true)
+        }
     }
 
     val importLauncher = rememberLauncherForActivityResult(
@@ -404,7 +440,8 @@ fun SettingsScreen(
                 onNavigateBack = onNavigateBack,
                 onNavigateToTrash = onNavigateToTrash,
                 onNavigateToChangePin = onNavigateToChangePin,
-                onRemovePin = { viewModel.removePin() },
+                onNavigateToRemovePin = onNavigateToRemovePin,
+                isBackupBusy = isBackupBusy,
                 onToggleReminder = { viewModel.toggleReminder(it) },
                 onUpdateReminderTime = { h, m -> viewModel.updateReminderTime(h, m) },
                 onThemeSelected = { viewModel.setThemeMode(it) },
@@ -413,8 +450,11 @@ fun SettingsScreen(
                 onToggleBiometric = { viewModel.setBiometricEnabled(it) },
                 onExportEntries = { audio, images -> viewModel.exportAllEntries(audio, images) },
                 onImportBackup = { importLauncher.launch(arrayOf("application/octet-stream", "application/zip")) },
-                isPermissionGranted = notificationPermissionState?.status?.isGranted ?: true,
-                onLaunchPermissionRequest = { notificationPermissionState?.launchPermissionRequest() }
+                isPermissionGranted = permissionGranted,
+                onLaunchPermissionRequest = {
+                    pendingReminderEnable = true
+                    notificationPermissionState?.launchPermissionRequest()
+                }
             )
         }
     }

@@ -42,8 +42,8 @@ fun SetupPinScreen(
         label = ""
     )
 
-    LaunchedEffect(state.pinSetSuccess) {
-        if (state.pinSetSuccess) {
+    LaunchedEffect(state.finished) {
+        if (state.finished) {
             onSetupSuccess()
         }
     }
@@ -83,7 +83,12 @@ fun SetupPinScreen(
             )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = if (state.currentStep == SetupPinViewModel.SetupPinStep.CHOOSE_PIN) "Choose a 4-digit PIN" else "Confirm your PIN",
+                text = when (state.currentStep) {
+                    SetupPinViewModel.SetupPinStep.VERIFY_CURRENT ->
+                        if (state.removeMode) "Enter your current PIN to remove it" else "Enter your current PIN"
+                    SetupPinViewModel.SetupPinStep.CHOOSE_PIN -> "Choose a 4-digit PIN"
+                    SetupPinViewModel.SetupPinStep.CONFIRM_PIN -> "Confirm your PIN"
+                },
                 color = Color.White,
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
@@ -109,7 +114,7 @@ fun SetupPinScreen(
 
         // NumPad
         NumPad(
-            enabled = !state.pinSetSuccess,
+            enabled = !state.finished,
             onDigitEntered = { viewModel.onDigitEntered(it) },
             onDelete = { viewModel.onDelete() }
         )

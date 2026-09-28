@@ -119,7 +119,9 @@ fun VoiceNoteCard(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                // Opaque — a translucent card let the red swipe background bleed through
+                // and look like a delete button that never worked.
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
             )
         ) {
             Column(modifier = Modifier.padding(12.dp)) {
@@ -164,11 +166,20 @@ fun VoiceNoteCard(
                         }
                     }
                     
-                    Text(
-                        text = formatDuration(currentPlaybackDuration),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = formatDuration(currentPlaybackDuration),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        IconButton(onClick = { showDeleteConfirmation = true }) {
+                            Icon(
+                                Icons.Default.Delete,
+                                contentDescription = "Delete voice note",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -279,21 +290,8 @@ fun VoiceNoteCard(
                             Icon(Icons.Default.Share, contentDescription = "Share recording")
                         }
 
-                        if (voiceNote.transcript.isNullOrBlank()) {
-                            if (isTranscribing) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(24.dp),
-                                    strokeWidth = 2.dp
-                                )
-                            } else {
-                                IconButton(onClick = { onTranscribe(voiceNote) }) {
-                                    Icon(
-                                        Icons.Default.ClosedCaption,
-                                        contentDescription = "Transcribe"
-                                    )
-                                }
-                            }
-                        }
+                        // Transcription button hidden: on-device transcription is still a
+                        // stub (SpeechTranscriptManager always reports an error).
                     } else {
                         Spacer(modifier = Modifier.width(48.dp))
                     }

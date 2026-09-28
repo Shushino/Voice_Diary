@@ -64,6 +64,8 @@ class AudioPlayerManager @Inject constructor(
                             _isPlaying.value = false
                             _currentPositionMs.value = 0
                             stopProgressUpdate()
+                            // Rewind so tapping Play again replays from the start
+                            mediaController.seekTo(0)
                         }
                     }
 
@@ -99,6 +101,10 @@ class AudioPlayerManager @Inject constructor(
     fun play(filePath: String) {
         runOnController { controller ->
             if (_currentFilePath.value == filePath) {
+                // stop() puts the player in STATE_IDLE; it needs prepare() before it can play again
+                if (controller.playbackState == Player.STATE_IDLE) {
+                    controller.prepare()
+                }
                 controller.play()
             } else {
                 val mediaItem = MediaItem.Builder()
@@ -127,6 +133,21 @@ class AudioPlayerManager @Inject constructor(
 
     fun setSpeed(speed: Float) {
         runOnController { it.setPlaybackSpeed(speed) }
+    }
+
+    /**
+     * Stops the current item but keeps the player alive. Use this anywhere in the app
+     * (it is a @Singleton — [release] is only for final teardown, and calling it from
+     * a screen/ViewModel would kill playback for the rest of the process).
+     */
+    fun stopPlayback() {
+        _isPlaying.value = false
+        _currentPositionMs.value = 0
+        stopProgressUpdate()
+        runOnController { controller ->
+            controller.stop()
+            controller.seekTo(0)
+        }
     }
 
     fun release() {

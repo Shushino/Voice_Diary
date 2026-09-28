@@ -6,6 +6,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import com.shushino.voicediary.MainActivity
 import com.shushino.voicediary.domain.model.Mood
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -46,7 +47,10 @@ class NotificationHelper @Inject constructor(
         notificationManager.createNotificationChannel(weeklyChannel)
     }
 
+    private fun canNotify(): Boolean = NotificationManagerCompat.from(context).areNotificationsEnabled()
+
     fun showDailyReminder() {
+        if (!canNotify()) return
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }
@@ -68,11 +72,21 @@ class NotificationHelper @Inject constructor(
     }
 
     fun showWeeklySummary(entryCount: Int, topMood: Mood) {
+        if (!canNotify()) return
+        val intent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            context, 1, intent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
         val notification = NotificationCompat.Builder(context, CHANNEL_WEEKLY_SUMMARY)
             .setSmallIcon(android.R.drawable.ic_popup_reminder)
             .setContentTitle("Weekly Summary")
             .setContentText("You wrote $entryCount entries this week. Most common mood: ${topMood.emoji}")
             .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setContentIntent(pendingIntent)
             .setAutoCancel(true)
             .build()
 
