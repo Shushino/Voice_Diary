@@ -3,12 +3,15 @@ package com.shushino.voicediary
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.compose.setContent
+import android.view.WindowManager
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavType
@@ -64,6 +67,17 @@ class MainActivity : AppCompatActivity() {
                 val navController = rememberNavController()
                 var startDestination by remember { mutableStateOf("loading") }
 
+                // A fast second back-tap during the 300ms screen transition used to pop
+                // one destination too many, leaving an empty back stack = blank white
+                // screen until the app was restarted. Ignore back taps while the current
+                // screen is still animating in/out (its lifecycle is below RESUMED).
+                val popBackStackSafely: () -> Unit = {
+                    val entry = navController.currentBackStackEntry
+                    if (entry == null || entry.lifecycle.currentState == Lifecycle.State.RESUMED) {
+                        navController.popBackStack()
+                    }
+                }
+
                 LaunchedEffect(Unit) {
                     try {
                         startDestination = if (lockManager.isPinSet()) "lock" else "home"
@@ -100,31 +114,41 @@ class MainActivity : AppCompatActivity() {
                         }
                         composable("settings") {
                             SettingsScreen(
-                                onNavigateBack = { navController.popBackStack() },
+                                onNavigateBack = popBackStackSafely,
                                 onNavigateToTrash = { navController.navigate("trash") },
-                                onNavigateToChangePin = { navController.navigate("setup_pin?isChange=true") }
+                                onNavigateToChangePin = { navController.navigate("setup_pin?isChange=true") },
+                                onNavigateToRemovePin = { navController.navigate("setup_pin?remove=true") }
                             )
                         }
                         composable("trash") {
                             TrashScreen(
-                                onNavigateBack = { navController.popBackStack() }
+                                onNavigateBack = popBackStackSafely
                             )
                         }
                         composable(
-                            route = "setup_pin?isChange={isChange}",
-                            arguments = listOf(navArgument("isChange") {
-                                type = NavType.BoolType
-                                defaultValue = false
-                            })
-                        ) {
+                            route = "setup_pin?isChange={isChange}&remove={remove}",
+                            arguments = listOf(
+                                navArgument("isChange") {
+                                    type = NavType.BoolType
+                                    defaultValue = false
+                                },
+                                navArgument("remove") {
+                                    type = NavType.BoolType
+                                    defaultValue = false
+                                }
+                            )
+                        ) { backStackEntry ->
                             SetupPinScreen(
                                 onSetupSuccess = {
-                                    val isChange = it.arguments?.getBoolean("isChange") ?: false
-                                    if (isChange) {
+                                    val isChange = backStackEntry.arguments?.getBoolean("isChange") ?: false
+                                    val isRemove = backStackEntry.arguments?.getBoolean("remove") ?: false
+                                    if (isChange || isRemove) {
                                         navController.popBackStack()
                                     } else {
                                         navController.navigate("home") {
-                                            popUpTo("setup_pin") { inclusive = true }
+                                            popUpTo("setup_pin?isChange={isChange}&remove={remove}") {
+                                                inclusive = true
+                                            }
                                         }
                                     }
                                 }
@@ -138,7 +162,7 @@ class MainActivity : AppCompatActivity() {
                             })
                         ) {
                             CreateEditScreen(
-                                onNavigateBack = { navController.popBackStack() },
+                                onNavigateBack = popBackStackSafely,
                                 audioImportManager = audioImportManager
                             )
                         }
@@ -147,13 +171,31 @@ class MainActivity : AppCompatActivity() {
                             arguments = listOf(navArgument("entryId") { type = NavType.LongType })
                         ) {
                             EntryDetailScreen(
-                                onNavigateBack = { navController.popBackStack() },
+                                onNavigateBack = popBackStackSafely,
                                 onNavigateToEdit = { entryId -> navController.navigate("create?entryId=$entryId") }
                             )
                         }
                     }
 
                     val isUnlocked by lockManager.isUnlocked.collectAsStateWithLifecycle()
+                    val isPinSet by lockManager.isPinSetFlow.collectAsStateWithLifecycle(initialValue = false)
+
+                    // Hide diary content from screenshots & the recents/app-switcher preview
+                    // whenever a PIN is set. It must stay on while unlocked too: Android takes
+                    // the recents thumbnail as the app leaves the screen, i.e. BEFORE the app
+                    // has re-locked itself.
+                    DisposableEffect(isUnlocked, isPinSet) {
+                        val secure = isPinSet
+                        if (secure) {
+                            window.setFlags(
+                                WindowManager.LayoutParams.FLAG_SECURE,
+                                WindowManager.LayoutParams.FLAG_SECURE
+                            )
+                        } else {
+                            window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                        }
+                        onDispose { }
+                    }
 
                     LaunchedEffect(isUnlocked) {
                         if (!isUnlocked) {

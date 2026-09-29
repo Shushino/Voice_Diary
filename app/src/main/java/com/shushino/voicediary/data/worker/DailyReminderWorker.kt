@@ -16,7 +16,11 @@ class DailyReminderWorker @AssistedInject constructor(
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
-        notificationHelper.showDailyReminder()
-        return Result.success()
+        return try {
+            notificationHelper.showDailyReminder()
+            Result.success()
+        } catch (e: Exception) {
+            Result.retry()
+        }
     }
 }

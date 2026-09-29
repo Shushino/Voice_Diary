@@ -72,4 +72,8 @@ interface EntryDao {
 
     @Query("SELECT * FROM entries WHERE isDeleted = 0 ORDER BY createdAt DESC")
     suspend fun getAllActiveEntriesSync(): List<EntryEntity>
+
+    /** Every row including trashed ones — used by backup import to skip existing entries. */
+    @Query("SELECT * FROM entries")
+    suspend fun getAllEntriesSync(): List<EntryEntity>
 }

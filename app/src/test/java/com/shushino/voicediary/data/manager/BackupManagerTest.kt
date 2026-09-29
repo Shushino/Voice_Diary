@@ -111,13 +111,116 @@ class BackupManagerTest {
         assertEquals(Mood.HAPPY, createdEntry.captured.mood)
         assertEquals(listOf("travel"), createdEntry.captured.tags)
 
-        coVerify(exactly = 1) { diaryRepository.addVoiceNote(match { it.entryId == 55L && it.durationMs == 1234L && it.label == "memo" }) }
-        coVerify(exactly = 1) { diaryRepository.addPhoto(match { it.entryId == 55L }) }
+        coVerify(exactly = 1) {
+            diaryRepository.addVoiceNote(
+                match {
+                    it.entryId == 55L && it.durationMs == 1234L && it.label == "memo" &&
+                        it.createdAt == 1000L // original media timestamp preserved
+                }
+            )
+        }
+        coVerify(exactly = 1) { diaryRepository.addPhoto(match { it.entryId == 55L && it.createdAt == 1000L }) }
 
         val importedAudio = File(importRoot, "voicenotes").listFiles()?.firstOrNull()
         val importedPhoto = File(importRoot, "photos").listFiles()?.firstOrNull()
         assertTrue(importedAudio != null && importedAudio.readText() == "AUDIO-BYTES")
         assertTrue(importedPhoto != null && importedPhoto.readText() == "PHOTO-BYTES")
+    }
+
+    @Test
+    fun importFromStream_skipsEntriesThatAlreadyExist() = runBlocking {
+        val manifest = """[{"id":99,"title":"Trip","body":"B","mood":"CALM","tags":[],
+            "createdAt":1,"updatedAt":2,"voiceNotes":[],"photos":[]}]"""
+        val baos = ByteArrayOutputStream()
+        java.util.zip.ZipOutputStream(baos).use { zos ->
+            zos.putNextEntry(java.util.zip.ZipEntry("manifest.json"))
+            zos.write(manifest.toByteArray())
+            zos.closeEntry()
+        }
+
+        // Same entry already on this device: same createdAt + title + body (the id may differ)
+        coEvery { diaryRepository.getAllEntriesSync() } returns listOf(
+            DiaryEntry(id = 7L, title = "Trip", body = "B", mood = Mood.CALM, tags = emptyList(), createdAt = 1L, updatedAt = 1L, deletedAt = null)
+        )
+        coEvery { diaryRepository.createEntry(any()) } returns 55L
+
+        backupManager.importFromStream(ByteArrayInputStream(baos.toByteArray()), filesRoot = filesRoot)
+
+        coVerify(exactly = 0) { diaryRepository.createEntry(any()) }
+    }
+
+    @Test
+    fun importFromStream_doesNotSkipDifferentEntryThatShareADatabaseId() = runBlocking {
+        // Regression: ids are auto-numbered per install. A backup from another phone can
+        // contain id 99 for a completely different entry than the local id 99.
+        val manifest = """[{"id":99,"title":"Trip","body":"B","mood":"CALM","tags":[],
+            "createdAt":1,"updatedAt":2,"voiceNotes":[],"photos":[]}]"""
+        val baos = ByteArrayOutputStream()
+        java.util.zip.ZipOutputStream(baos).use { zos ->
+            zos.putNextEntry(java.util.zip.ZipEntry("manifest.json"))
+            zos.write(manifest.toByteArray())
+            zos.closeEntry()
+        }
+
+        coEvery { diaryRepository.getAllEntriesSync() } returns listOf(
+            DiaryEntry(id = 99L, title = "Existing", body = "x", mood = Mood.CALM, tags = emptyList(), createdAt = 5000L, updatedAt = 5000L, deletedAt = null)
+        )
+        coEvery { diaryRepository.createEntry(any()) } returns 55L
+
+        backupManager.importFromStream(ByteArrayInputStream(baos.toByteArray()), filesRoot = filesRoot)
+
+        coVerify(exactly = 1) { diaryRepository.createEntry(any()) }
+    }
+
+    @Test
+    fun importFromStream_importsUnknownEntries() = runBlocking {
+        val manifest = """[{"id":99,"title":"Trip","body":"B","mood":"CALM","tags":[],
+            "createdAt":1,"updatedAt":2,"voiceNotes":[],"photos":[]}]"""
+        val baos = ByteArrayOutputStream()
+        java.util.zip.ZipOutputStream(baos).use { zos ->
+            zos.putNextEntry(java.util.zip.ZipEntry("manifest.json"))
+            zos.write(manifest.toByteArray())
+            zos.closeEntry()
+        }
+
+        coEvery { diaryRepository.getAllEntriesSync() } returns emptyList()
+        coEvery { diaryRepository.createEntry(any()) } returns 55L
+
+        backupManager.importFromStream(ByteArrayInputStream(baos.toByteArray()), filesRoot = filesRoot)
+
+        coVerify(exactly = 1) { diaryRepository.createEntry(any()) }
+    }
+
+    @Test
+    fun importFromStream_fallsBackToNowWhenLegacyBackupHasNoMediaTimestamp() = runBlocking {
+        // A 1.x backup: voiceNotes have no createdAt field at all
+        val manifest = """[{"id":5,"title":"Old","body":"B","mood":"CALM","tags":[],
+            "createdAt":1,"updatedAt":2,
+            "voiceNotes":[{"originalFilename":"a.m4a","durationMs":5,"label":null,"transcript":null}],
+            "photos":[]}]"""
+        val audio = File(filesRoot, "voicenotes").also { it.mkdirs() }.let { dir ->
+            File(dir, "a.m4a").also { it.writeText("AUDIO") }
+        }
+        val baos = ByteArrayOutputStream()
+        java.util.zip.ZipOutputStream(baos).use { zos ->
+            zos.putNextEntry(java.util.zip.ZipEntry("manifest.json"))
+            zos.write(manifest.toByteArray())
+            zos.closeEntry()
+            zos.putNextEntry(java.util.zip.ZipEntry("audio/5_a.m4a"))
+            zos.write("AUDIO".toByteArray())
+            zos.closeEntry()
+        }
+
+        coEvery { diaryRepository.getAllEntriesSync() } returns emptyList()
+        coEvery { diaryRepository.createEntry(any()) } returns 77L
+
+        val importedNote = slot<VoiceNote>()
+        coEvery { diaryRepository.addVoiceNote(capture(importedNote)) } returns Unit
+
+        backupManager.importFromStream(ByteArrayInputStream(baos.toByteArray()), filesRoot = filesRoot)
+
+        // createdAt must fall back to something sensible (import time), not 0
+        assert(importedNote.captured.createdAt > 0L)
     }
 
     @Test

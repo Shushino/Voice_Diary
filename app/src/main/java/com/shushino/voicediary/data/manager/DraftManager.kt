@@ -1,6 +1,7 @@
 package com.shushino.voicediary.data.manager
 
 import android.content.Context
+import androidx.annotation.Keep
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
@@ -15,6 +16,9 @@ import javax.inject.Singleton
 
 private val Context.draftDataStore: DataStore<Preferences> by preferencesDataStore(name = "draft_prefs")
 
+// @Keep: this class crosses Gson reflection; R8 renaming its fields would corrupt
+// drafts saved by earlier builds (keys would no longer match).
+@Keep
 data class EntryDraft(
     val title: String,
     val body: String,
@@ -34,7 +38,8 @@ class DraftManager @Inject constructor(
 
     val draftFlow: Flow<EntryDraft?> = context.draftDataStore.data.map { preferences ->
         preferences[Keys.DRAFT]?.let { json ->
-            gson.fromJson(json, EntryDraft::class.java)
+            // A corrupt/unreadable draft should surface as "no draft", not crash the flow.
+            runCatching { gson.fromJson(json, EntryDraft::class.java) }.getOrNull()
         }
     }
 

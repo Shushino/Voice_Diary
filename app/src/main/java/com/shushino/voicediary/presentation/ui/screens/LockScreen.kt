@@ -136,9 +136,16 @@ fun LockScreen(
             }
         }
 
-        // Error message
-        if (state.errorMessage != null) {
-            Text(
+        // Error / lockout message
+        val lockoutSec = state.lockoutRemainingSec
+        when {
+            lockoutSec > 0 -> Text(
+                text = "Too many wrong attempts — try again in ${lockoutSec}s",
+                color = Color.White,
+                fontSize = 16.sp,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+            state.errorMessage != null -> Text(
                 text = state.errorMessage!!,
                 color = Color.Red,
                 fontSize = 16.sp,
@@ -155,7 +162,7 @@ fun LockScreen(
 
         // NumPad
         NumPad(
-            enabled = !state.isVerifying,
+            enabled = !state.isVerifying && lockoutSec == 0,
             onDigitEntered = { viewModel.onDigitEntered(it) },
             onDelete = { viewModel.onDelete() }
         )
@@ -164,7 +171,7 @@ fun LockScreen(
         if (state.isBiometricAvailable) {
             IconButton(
                 onClick = { biometricPrompt.authenticate(promptInfo) },
-                enabled = !state.isVerifying
+                enabled = !state.isVerifying && lockoutSec == 0
             ) {
                 Icon(
                     Icons.Default.Fingerprint,

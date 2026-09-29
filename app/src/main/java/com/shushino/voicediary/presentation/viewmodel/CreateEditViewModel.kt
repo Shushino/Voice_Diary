@@ -13,11 +13,13 @@ import com.shushino.voicediary.domain.model.Photo
 import com.shushino.voicediary.domain.model.VoiceNote
 import com.shushino.voicediary.domain.repository.DiaryRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
 import javax.inject.Inject
@@ -144,6 +146,14 @@ class CreateEditViewModel @Inject constructor(
         _state.update { it.copy(showDraftRestoredBanner = false) }
     }
 
+    /** Clears the autosaved draft (Back on a new entry = "discard"). */
+    fun discardDraft() {
+        autoSaveJob?.cancel()
+        viewModelScope.launch {
+            draftManager.clearDraft()
+        }
+    }
+
     fun addVoiceNote(voiceNote: VoiceNote) {
         viewModelScope.launch {
             diaryRepository.addVoiceNote(voiceNote)
@@ -168,35 +178,40 @@ class CreateEditViewModel @Inject constructor(
         }
     }
 
-    fun copyImageToInternal(context: Context, uri: Uri): String? {
-        return try {
-            val inputStream = context.contentResolver.openInputStream(uri) ?: return null
-            val photosDir = File(context.filesDir, "photos")
-            if (!photosDir.exists()) photosDir.mkdirs()
+    suspend fun copyImageToInternal(context: Context, uri: Uri): String? {
+        return withContext(Dispatchers.IO) {
+            try {
+                val inputStream = context.contentResolver.openInputStream(uri) ?: return@withContext null
+                val photosDir = File(context.filesDir, "photos")
+                if (!photosDir.exists()) photosDir.mkdirs()
 
-            val fileName = "photo_${System.currentTimeMillis()}.jpg"
-            val destinationFile = File(photosDir, fileName)
+                val fileName = "photo_${System.currentTimeMillis()}.jpg"
+                val destinationFile = File(photosDir, fileName)
 
-            FileOutputStream(destinationFile).use { outputStream ->
-                inputStream.copyTo(outputStream)
+                FileOutputStream(destinationFile).use { outputStream ->
+                    inputStream.copyTo(outputStream)
+                }
+                destinationFile.absolutePath
+            } catch (e: Exception) {
+                null
             }
-            destinationFile.absolutePath
-        } catch (e: Exception) {
-            null
         }
     }
 
     fun saveEntry(autoSave: Boolean = false) {
+        // Double-tap guard: while a save is in flight, ignore further taps (the UI also
+        // disables the Save button). Without this, two taps could create two entries.
+        if (_state.value.isSaving) return
+        _state.update { it.copy(isSaving = true) }
         viewModelScope.launch {
             val currentState = _state.value
-            _state.update { it.copy(isSaving = true) }
             val now = System.currentTimeMillis()
             val createdAt = if (currentState.entryId != null && currentState.entryId != -1L) {
                 currentState.originalCreatedAt ?: now
             } else {
                 now
             }
-            
+
             val entry = DiaryEntry(
                 id = currentState.entryId ?: 0L,
                 title = currentState.title,
@@ -216,7 +231,9 @@ class CreateEditViewModel @Inject constructor(
             }
 
             if (!autoSave) {
+                autoSaveJob?.cancel()
                 draftManager.clearDraft()
+                _state.update { it.copy(isSaving = false) }
                 _eventFlow.emit(CreateEditEvent.Saved)
             } else {
                 _state.update { it.copy(isSaving = false) }

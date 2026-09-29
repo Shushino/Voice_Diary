@@ -5,6 +5,8 @@ import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.provider.OpenableColumns
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -59,33 +61,39 @@ class AudioImportManager @Inject constructor(
         }
     }
 
-    fun validateAndCopyAudioFile(uri: Uri): Result<Pair<String, Long>> {
-        return runCatching {
-            val contentResolver = context.contentResolver
-            val mimeType = contentResolver.getType(uri)
+    /**
+     * Runs on [Dispatchers.IO] — copying a file of up to 50 MB (plus reading its
+     * duration) must never happen on the main thread.
+     */
+    suspend fun validateAndCopyAudioFile(uri: Uri): Result<Pair<String, Long>> {
+        return withContext(Dispatchers.IO) {
+            runCatching {
+                val contentResolver = context.contentResolver
+                val mimeType = contentResolver.getType(uri)
 
-            validateMimeType(mimeType).getOrThrow()
+                validateMimeType(mimeType).getOrThrow()
 
-            val fileSize = getFileSize(uri)
-            validateFileSize(fileSize).getOrThrow()
+                val fileSize = getFileSize(uri)
+                validateFileSize(fileSize).getOrThrow()
 
-            val voiceNotesDir = File(context.filesDir, "voicenotes")
-            if (!voiceNotesDir.exists()) voiceNotesDir.mkdirs()
+                val voiceNotesDir = File(context.filesDir, "voicenotes")
+                if (!voiceNotesDir.exists()) voiceNotesDir.mkdirs()
 
-            val fileName = "import_${System.currentTimeMillis()}.${getFileExtension(mimeType!!)}"
-            val destinationFile = File(voiceNotesDir, fileName)
+                val fileName = "import_${System.currentTimeMillis()}.${getFileExtension(mimeType!!)}"
+                val destinationFile = File(voiceNotesDir, fileName)
 
-            val inputStream = contentResolver.openInputStream(uri)
-                ?: throw IOException("Failed to open input stream")
-            inputStream.use { input ->
-                FileOutputStream(destinationFile).use { outputStream ->
-                    input.copyTo(outputStream)
+                val inputStream = contentResolver.openInputStream(uri)
+                    ?: throw IOException("Failed to open input stream")
+                inputStream.use { input ->
+                    FileOutputStream(destinationFile).use { outputStream ->
+                        input.copyTo(outputStream)
+                    }
                 }
+
+                val duration = getAudioDuration(destinationFile.absolutePath)
+
+                destinationFile.absolutePath to duration
             }
-
-            val duration = getAudioDuration(destinationFile.absolutePath)
-
-            destinationFile.absolutePath to duration
         }
     }
 

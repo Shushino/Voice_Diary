@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
+import java.security.MessageDigest
 import java.security.SecureRandom
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -50,7 +51,12 @@ class LockManager @Inject constructor(
         val preferences = context.lockDataStore.data.first()
         val storedPin = preferences[PIN_KEY] ?: return false
         val storedSalt = preferences[PIN_SALT_KEY] ?: return false
-        return storedPin == hashPin(rawPin, storedSalt)
+        // Constant-time comparison so verification time doesn't hint at how many
+        // characters were right.
+        return MessageDigest.isEqual(
+            Base64.decode(storedPin, Base64.NO_WRAP),
+            Base64.decode(hashPin(rawPin, storedSalt), Base64.NO_WRAP)
+        )
     }
 
     suspend fun isPinSet(): Boolean {

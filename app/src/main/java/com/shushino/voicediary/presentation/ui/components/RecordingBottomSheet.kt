@@ -73,6 +73,14 @@ fun RecordingBottomSheet(
             when (event) {
                 RecordingViewModel.RecordingEvent.Saved -> {
                     onSaved()
+                    // Reset so reopening the sheet starts a fresh recording
+                    // (the VM outlives the sheet — it is scoped to the entry screen).
+                    viewModel.reset()
+                    onDismiss()
+                }
+                RecordingViewModel.RecordingEvent.RecordingTooShort -> {
+                    // Stopped before any audio was captured; nothing was saved.
+                    viewModel.reset()
                     onDismiss()
                 }
                 RecordingViewModel.RecordingEvent.MaxDurationReached -> {
@@ -173,6 +181,7 @@ fun RecordingBottomSheet(
                         onClick = {
                             if (state.isPaused) viewModel.resume() else viewModel.pause()
                         },
+                        enabled = state.isRecording,
                         shape = CircleShape,
                         modifier = Modifier.size(64.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Color.Red),

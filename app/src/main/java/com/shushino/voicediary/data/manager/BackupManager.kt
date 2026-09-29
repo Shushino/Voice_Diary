@@ -17,7 +17,9 @@ import com.shushino.voicediary.domain.model.Photo
 import com.shushino.voicediary.domain.model.VoiceNote
 import com.shushino.voicediary.domain.repository.DiaryRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
 import java.io.BufferedOutputStream
 import java.io.File
 import java.io.FileOutputStream
@@ -33,8 +35,13 @@ import java.util.zip.ZipOutputStream
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/** Thrown when there is nothing to export; callers show a friendly message, not a failure. */
+class NoEntriesToExportException :
+    IllegalStateException("No entries to export")
+
 /**
  * Creates and restores `.vdiary` zip backups (manifest.json + audio/photos).
+ * All zip/file work runs on [Dispatchers.IO].
  */
 @Singleton
 class BackupManager @Inject constructor(
@@ -51,39 +58,41 @@ class BackupManager @Inject constructor(
     suspend fun exportAllEntries(
         includeAudio: Boolean = true,
         includeImages: Boolean = true
-    ): Result<Int> = runCatching {
-        val entries = diaryRepository.getAllActiveEntriesSync()
-        if (entries.isEmpty()) {
-            error("No entries to export")
-        }
-
-        val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-        val fileName = "voicediary_backup_$timestamp.vdiary"
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val resolver = context.contentResolver
-            val contentValues = ContentValues().apply {
-                put(MediaStore.Downloads.DISPLAY_NAME, fileName)
-                put(MediaStore.Downloads.MIME_TYPE, "application/octet-stream")
-                put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+    ): Result<Int> = withContext(Dispatchers.IO) {
+        runCatching {
+            val entries = diaryRepository.getAllActiveEntriesSync()
+            if (entries.isEmpty()) {
+                throw NoEntriesToExportException()
             }
-            val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
-                ?: error("Failed to create export file")
-            resolver.openOutputStream(uri)?.use { os ->
-                ZipOutputStream(os).use { zos ->
-                    writeEntriesToZip(entries, zos, includeAudio, includeImages)
+
+            val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+            val fileName = "voicediary_backup_$timestamp.vdiary"
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val resolver = context.contentResolver
+                val contentValues = ContentValues().apply {
+                    put(MediaStore.Downloads.DISPLAY_NAME, fileName)
+                    put(MediaStore.Downloads.MIME_TYPE, "application/octet-stream")
+                    put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
                 }
-            } ?: error("Failed to open export stream")
-        } else {
-            val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-            val file = File(downloadsDir, fileName)
-            FileOutputStream(file).use { fos ->
-                ZipOutputStream(fos).use { zos ->
-                    writeEntriesToZip(entries, zos, includeAudio, includeImages)
+                val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+                    ?: error("Failed to create export file")
+                resolver.openOutputStream(uri)?.use { os ->
+                    ZipOutputStream(os).use { zos ->
+                        writeEntriesToZip(entries, zos, includeAudio, includeImages)
+                    }
+                } ?: error("Failed to open export stream")
+            } else {
+                val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                val file = File(downloadsDir, fileName)
+                FileOutputStream(file).use { fos ->
+                    ZipOutputStream(fos).use { zos ->
+                        writeEntriesToZip(entries, zos, includeAudio, includeImages)
+                    }
                 }
             }
+            entries.size
         }
-        entries.size
     }
 
     /**
@@ -97,12 +106,19 @@ class BackupManager @Inject constructor(
 
     /**
      * Stream-based import for unit tests and content-resolver callers.
+     *
+     * Entries that already exist in the database (active or trashed) are skipped, so
+     * re-importing a backup on the same device no longer duplicates every entry; their
+     * media files are skipped too. "Already exists" means the same creation time, title
+     * and body. Database ids are NOT compared: they are auto-numbered per install, so a
+     * backup from another phone reuses the same small numbers for different entries.
+     *
      * @param filesRoot app files directory (defaults to [Context.getFilesDir])
      */
     suspend fun importFromStream(
         inputStream: InputStream,
         filesRoot: File = context.filesDir
-    ) {
+    ) = withContext(Dispatchers.IO) {
         ZipInputStream(inputStream).use { zipInputStream ->
             var zipEntry: ZipEntry? = zipInputStream.nextEntry
             if (zipEntry == null || zipEntry.name != "manifest.json") {
@@ -117,8 +133,13 @@ class BackupManager @Inject constructor(
                 object : TypeToken<List<EntryExportDto>>() {}.type
             )
 
+            val existingKeys = diaryRepository.getAllEntriesSync()
+                .map { entryKey(it.createdAt, it.title, it.body) }
+                .toSet()
+
             val entryMap = mutableMapOf<Long, Long>()
             entries.forEach { dto ->
+                if (entryKey(dto.createdAt, dto.title, dto.body) in existingKeys) return@forEach
                 val newEntryId = diaryRepository.createEntry(
                     DiaryEntry(
                         title = dto.title,
@@ -172,17 +193,19 @@ class BackupManager @Inject constructor(
                                             durationMs = vnDto.durationMs,
                                             label = vnDto.label,
                                             transcript = vnDto.transcript,
-                                            createdAt = System.currentTimeMillis(),
+                                            createdAt = if (vnDto.createdAt > 0) vnDto.createdAt else System.currentTimeMillis(),
                                             deletedAt = null
                                         )
                                     )
                                 }
                             } else {
+                                val dto = entries.find { it.id == oldEntryId }
+                                val phDto = dto?.photos?.find { it.originalFilename == originalName }
                                 diaryRepository.addPhoto(
                                     Photo(
                                         entryId = newEntryId,
                                         filePath = destFile.absolutePath,
-                                        createdAt = System.currentTimeMillis()
+                                        createdAt = if (phDto != null && phDto.createdAt > 0) phDto.createdAt else System.currentTimeMillis()
                                     )
                                 )
                             }
@@ -236,7 +259,8 @@ class BackupManager @Inject constructor(
                     originalFilename = originalName,
                     durationMs = vn.durationMs,
                     label = vn.label,
-                    transcript = vn.transcript
+                    transcript = vn.transcript,
+                    createdAt = vn.createdAt
                 )
             }
 
@@ -245,7 +269,7 @@ class BackupManager @Inject constructor(
                 val zipPath = "photos/${entry.id}_$originalName"
                 filesToInclude.add(zipPath to p.filePath)
 
-                PhotoExportDto(originalFilename = originalName)
+                PhotoExportDto(originalFilename = originalName, createdAt = p.createdAt)
             }
 
             exportDtos.add(
@@ -280,6 +304,10 @@ class BackupManager @Inject constructor(
             }
         }
     }
+
+    /** Identity of an entry across devices (see [importFromStream]). */
+    private fun entryKey(createdAt: Long, title: String?, body: String): String =
+        "$createdAt|${title.orEmpty()}|$body"
 
     fun buildImportedFileName(prefix: String, originalFilename: String): String {
         val baseName = originalFilename

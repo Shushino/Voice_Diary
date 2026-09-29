@@ -1,5 +1,6 @@
 package com.shushino.voicediary.presentation.viewmodel
 
+import android.os.SystemClock
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.shushino.voicediary.data.manager.AudioRecorderManager
@@ -42,32 +43,72 @@ class RecordingViewModel @Inject constructor(
     private var samplerJob: Job? = null
     private var currentOutputPath: String? = null
 
+    // Real elapsed recording time (excluding pauses), immune to timer drift.
+    private var accumulatedMs = 0L
+    private var segmentStartRealtime = 0L
+    private var autoStopTriggered = false
+
+    private fun currentElapsedMs(): Long =
+        accumulatedMs + if (segmentStartRealtime > 0) SystemClock.elapsedRealtime() - segmentStartRealtime else 0L
+
     fun start(outputPath: String) {
         currentOutputPath = outputPath
+        accumulatedMs = 0L
+        autoStopTriggered = false
         recorderManager.startRecording(outputPath)
-        _state.update { it.copy(isRecording = true, isPaused = false, elapsedMs = 0L, amplitudes = emptyList(), showWarning = false, isFinished = false) }
+        segmentStartRealtime = SystemClock.elapsedRealtime()
+        _state.update {
+            it.copy(
+                isRecording = true,
+                isPaused = false,
+                elapsedMs = 0L,
+                amplitudes = emptyList(),
+                showWarning = false,
+                isFinished = false
+            )
+        }
         startTimer()
         startSampler()
     }
 
     fun pause() {
+        if (!_state.value.isRecording || _state.value.isPaused) return
         recorderManager.pauseRecording()
-        _state.update { it.copy(isPaused = true) }
+        accumulatedMs = currentElapsedMs()
+        segmentStartRealtime = 0L
+        _state.update { it.copy(isPaused = true, elapsedMs = accumulatedMs) }
         timerJob?.cancel()
         samplerJob?.cancel()
     }
 
     fun resume() {
+        if (!_state.value.isRecording || !_state.value.isPaused) return
         recorderManager.resumeRecording()
+        segmentStartRealtime = SystemClock.elapsedRealtime()
         _state.update { it.copy(isPaused = false) }
         startTimer()
         startSampler()
     }
 
     fun stopAndSave(entryId: Long) {
-        recorderManager.stopRecording()
-        val path = currentOutputPath ?: return
-        val duration = _state.value.elapsedMs
+        // Idempotent: a second Stop tap (or a max-duration tick racing the user) must not
+        // save twice or act while no recording is live.
+        if (!_state.value.isRecording) return
+        _state.update { it.copy(isRecording = false) }
+        stopJobs()
+
+        val path = currentOutputPath
+        val duration = currentElapsedMs()
+        val stopped = recorderManager.stopRecording()
+
+        if (!stopped || path == null) {
+            // No usable audio was captured (e.g. sub-second recording) — clean up the
+            // empty file instead of saving a broken voice note.
+            path?.let { File(it).delete() }
+            _state.update { it.copy(isPaused = false, isFinished = true) }
+            viewModelScope.launch { _eventFlow.emit(RecordingEvent.RecordingTooShort) }
+            return
+        }
 
         viewModelScope.launch {
             diaryRepository.addVoiceNote(
@@ -81,17 +122,18 @@ class RecordingViewModel @Inject constructor(
                     deletedAt = null
                 )
             )
-            _state.update { it.copy(isRecording = false, isFinished = true) }
+            _state.update { it.copy(isPaused = false, isFinished = true) }
             _eventFlow.emit(RecordingEvent.Saved)
         }
-        stopJobs()
     }
 
     fun discard() {
-        recorderManager.stopRecording()
+        if (_state.value.isRecording) {
+            recorderManager.stopRecording()
+        }
         currentOutputPath?.let { File(it).delete() }
-        _state.update { it.copy(isRecording = false, isFinished = true) }
         stopJobs()
+        _state.update { it.copy(isRecording = false, isPaused = false, isFinished = true) }
     }
 
     fun reset() {
@@ -103,26 +145,25 @@ class RecordingViewModel @Inject constructor(
         timerJob?.cancel()
         timerJob = viewModelScope.launch {
             while (true) {
-                delay(1000)
-                _state.update { 
-                    val newElapsed = it.elapsedMs + 1000
-                    val showWarning = newElapsed >= 9 * 60 * 1000 // 9 minutes
-                    
-                    if (newElapsed >= 10 * 60 * 1000) { // 10 minutes limit
-                        stopAndSaveAutomatic()
-                        it.copy(elapsedMs = newElapsed, showWarning = showWarning)
-                    } else {
-                        it.copy(elapsedMs = newElapsed, showWarning = showWarning)
-                    }
+                delay(500)
+                val elapsed = currentElapsedMs()
+                if (elapsed >= maxDurationMs && !autoStopTriggered) {
+                    autoStopTriggered = true
+                    stopAndSaveAutomatic()
+                    return@launch
+                }
+                _state.update {
+                    it.copy(
+                        elapsedMs = elapsed,
+                        showWarning = elapsed >= warnThresholdMs && elapsed < maxDurationMs
+                    )
                 }
             }
         }
     }
 
     private fun stopAndSaveAutomatic() {
-        // This is a bit tricky since we don't have entryId here.
-        // In a real app, we might save as orphaned or rely on the UI to call stopAndSave.
-        // For now, we'll just emit an event or let the UI handle the max duration.
+        // The sheet listens for this and calls stopAndSave(entryId), which is now idempotent.
         viewModelScope.launch {
             _eventFlow.emit(RecordingEvent.MaxDurationReached)
         }
@@ -134,7 +175,7 @@ class RecordingViewModel @Inject constructor(
             while (true) {
                 delay(100)
                 val amplitude = recorderManager.getAmplitude().toFloat()
-                _state.update { 
+                _state.update {
                     val newAmplitudes = (it.amplitudes + amplitude).takeLast(50)
                     it.copy(amplitudes = newAmplitudes)
                 }
@@ -156,8 +197,16 @@ class RecordingViewModel @Inject constructor(
         super.onCleared()
     }
 
+    companion object {
+        private const val warnThresholdMs = 9 * 60 * 1000L
+        private const val maxDurationMs = 10 * 60 * 1000L
+    }
+
     sealed class RecordingEvent {
         object Saved : RecordingEvent()
         object MaxDurationReached : RecordingEvent()
+
+        /** Recording stopped before any audio was captured; nothing was saved. */
+        object RecordingTooShort : RecordingEvent()
     }
 }

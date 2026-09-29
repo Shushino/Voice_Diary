@@ -45,13 +45,32 @@ class AudioRecorderManager @Inject constructor(
         recorder?.resume()
     }
 
-    fun stopRecording() {
-        recorder?.apply {
-            stop()
-            reset()
-            release()
+    /**
+     * Stops and releases the recorder.
+     * @return true if audio data was written to the output file. MediaRecorder.stop()
+     * throws IllegalStateException when stopped too early to have produced any frames
+     * (e.g. a sub-second recording), which used to crash the app — treat it as a
+     * discarded recording instead. Always releases the recorder.
+     */
+    fun stopRecording(): Boolean {
+        val current = recorder ?: return false
+        val stopped = try {
+            current.stop()
+            true
+        } catch (_: Exception) {
+            false
+        } finally {
+            try {
+                current.reset()
+            } catch (_: Exception) {
+            }
+            try {
+                current.release()
+            } catch (_: Exception) {
+            }
+            recorder = null
         }
-        recorder = null
+        return stopped
     }
 
     fun getAmplitude(): Int {

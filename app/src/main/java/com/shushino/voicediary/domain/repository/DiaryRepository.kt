@@ -18,6 +18,9 @@ interface DiaryRepository {
     suspend fun emptyTrash()
     suspend fun restoreEntry(id: Long)
     suspend fun getAllActiveEntriesSync(): List<DiaryEntry>
+
+    /** All entries including trashed ones (backup import uses this to skip duplicates). */
+    suspend fun getAllEntriesSync(): List<DiaryEntry>
     fun getVoiceNotesForEntry(entryId: Long): Flow<List<VoiceNote>>
     suspend fun addVoiceNote(voiceNote: VoiceNote)
     suspend fun deleteVoiceNote(id: Long)

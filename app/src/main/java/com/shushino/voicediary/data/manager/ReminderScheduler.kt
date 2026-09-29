@@ -16,7 +16,13 @@ class ReminderScheduler @Inject constructor(
 ) {
     private val workManager = WorkManager.getInstance(context)
 
-    fun scheduleDailyReminder(hour: Int, minute: Int) {
+    /**
+     * @param reanchor pass true when the user CHANGED the reminder time. The default
+     * UPDATE policy keeps WorkManager's original period anchor, so the next fire would
+     * still follow the old schedule; CANCEL_AND_REENQUEUE restarts the 24h cycle from
+     * the newly chosen time. Pass false for enable/disable reconciliation.
+     */
+    fun scheduleDailyReminder(hour: Int, minute: Int, reanchor: Boolean = false) {
         val calendar = Calendar.getInstance().apply {
             set(Calendar.HOUR_OF_DAY, hour)
             set(Calendar.MINUTE, minute)
@@ -35,7 +41,8 @@ class ReminderScheduler @Inject constructor(
 
         workManager.enqueueUniquePeriodicWork(
             "daily_reminder",
-            ExistingPeriodicWorkPolicy.UPDATE,
+            if (reanchor) ExistingPeriodicWorkPolicy.CANCEL_AND_REENQUEUE
+            else ExistingPeriodicWorkPolicy.UPDATE,
             dailyRequest
         )
     }

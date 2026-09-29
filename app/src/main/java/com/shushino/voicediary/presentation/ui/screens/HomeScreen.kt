@@ -49,6 +49,13 @@ fun HomeScreen(
     val focusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
 
+    // The search field visibility is local state; if we leave Home without tapping the X
+    // (back, navigating to Settings…), the query used to survive in the ViewModel and the
+    // filtered list would silently stick around. Clear it whenever Home goes away.
+    DisposableEffect(Unit) {
+        onDispose { viewModel.onSearchQueryChange("") }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -194,7 +201,7 @@ fun HomeScreen(
                                     }
                                 }
                             } else {
-                                items(state.entries) { entry ->
+                                items(state.entries, key = { it.id }) { entry ->
                                     DiaryEntryCard(
                                         entry = entry,
                                         onClick = { onNavigateToDetail(entry.id) }

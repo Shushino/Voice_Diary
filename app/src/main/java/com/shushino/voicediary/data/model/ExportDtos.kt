@@ -20,10 +20,14 @@ data class VoiceNoteExportDto(
     val originalFilename: String,
     val durationMs: Long,
     val label: String?,
-    val transcript: String?
+    val transcript: String?,
+    /** Added in backup format v2. Older 1.x backups omit it; import falls back to "now". */
+    val createdAt: Long = 0L
 )
 
 @Keep
 data class PhotoExportDto(
-    val originalFilename: String
+    val originalFilename: String,
+    /** Added in backup format v2. Older 1.x backups omit it; import falls back to "now". */
+    val createdAt: Long = 0L
 )
