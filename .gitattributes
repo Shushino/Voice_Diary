@@ -1,0 +1,7 @@
+# Keep line endings consistent (LF in the repo) so Windows CRLF never shows up as fake changes.
+* text=auto eol=lf
+*.bat text eol=crlf
+*.jar binary
+*.png binary
+*.jpg binary
+*.webp binary

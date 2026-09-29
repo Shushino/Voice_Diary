@@ -107,9 +107,11 @@ class BackupManager @Inject constructor(
     /**
      * Stream-based import for unit tests and content-resolver callers.
      *
-     * Entries whose original id already exists in the database (active or trashed) are
-     * skipped, so re-importing a backup on the same device no longer duplicates every
-     * entry; their media files are skipped too.
+     * Entries that already exist in the database (active or trashed) are skipped, so
+     * re-importing a backup on the same device no longer duplicates every entry; their
+     * media files are skipped too. "Already exists" means the same creation time, title
+     * and body. Database ids are NOT compared: they are auto-numbered per install, so a
+     * backup from another phone reuses the same small numbers for different entries.
      *
      * @param filesRoot app files directory (defaults to [Context.getFilesDir])
      */
@@ -131,11 +133,13 @@ class BackupManager @Inject constructor(
                 object : TypeToken<List<EntryExportDto>>() {}.type
             )
 
-            val existingIds = diaryRepository.getAllEntriesSync().map { it.id }.toSet()
+            val existingKeys = diaryRepository.getAllEntriesSync()
+                .map { entryKey(it.createdAt, it.title, it.body) }
+                .toSet()
 
             val entryMap = mutableMapOf<Long, Long>()
             entries.forEach { dto ->
-                if (dto.id in existingIds) return@forEach
+                if (entryKey(dto.createdAt, dto.title, dto.body) in existingKeys) return@forEach
                 val newEntryId = diaryRepository.createEntry(
                     DiaryEntry(
                         title = dto.title,
@@ -300,6 +304,10 @@ class BackupManager @Inject constructor(
             }
         }
     }
+
+    /** Identity of an entry across devices (see [importFromStream]). */
+    private fun entryKey(createdAt: Long, title: String?, body: String): String =
+        "$createdAt|${title.orEmpty()}|$body"
 
     fun buildImportedFileName(prefix: String, originalFilename: String): String {
         val baseName = originalFilename

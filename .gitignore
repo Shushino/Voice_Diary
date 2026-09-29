@@ -25,4 +25,14 @@ captures/
 Thumbs.db
 .kotlin
 .vscode
-settings.gradle.kts
+
+# Secrets / signing (never commit)
+*.jks
+*.keystore
+keystore.properties
+
+# Diary backups & scratch files from device testing
+*.vdiary
+*.log
+vd_*.png
+HANDOFF-*.md

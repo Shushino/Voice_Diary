@@ -181,9 +181,11 @@ class MainActivity : AppCompatActivity() {
                     val isPinSet by lockManager.isPinSetFlow.collectAsStateWithLifecycle(initialValue = false)
 
                     // Hide diary content from screenshots & the recents/app-switcher preview
-                    // whenever the PIN gate is active.
+                    // whenever a PIN is set. It must stay on while unlocked too: Android takes
+                    // the recents thumbnail as the app leaves the screen, i.e. BEFORE the app
+                    // has re-locked itself.
                     DisposableEffect(isUnlocked, isPinSet) {
-                        val secure = isPinSet && !isUnlocked
+                        val secure = isPinSet
                         if (secure) {
                             window.setFlags(
                                 WindowManager.LayoutParams.FLAG_SECURE,

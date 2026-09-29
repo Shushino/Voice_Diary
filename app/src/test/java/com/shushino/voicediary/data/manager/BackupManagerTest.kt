@@ -138,15 +138,38 @@ class BackupManagerTest {
             zos.closeEntry()
         }
 
-        // Entry id 99 already exists on this device (active or trashed)
+        // Same entry already on this device: same createdAt + title + body (the id may differ)
         coEvery { diaryRepository.getAllEntriesSync() } returns listOf(
-            DiaryEntry(id = 99L, title = "Existing", body = "x", mood = Mood.CALM, tags = emptyList(), createdAt = 1L, updatedAt = 1L, deletedAt = null)
+            DiaryEntry(id = 7L, title = "Trip", body = "B", mood = Mood.CALM, tags = emptyList(), createdAt = 1L, updatedAt = 1L, deletedAt = null)
         )
         coEvery { diaryRepository.createEntry(any()) } returns 55L
 
         backupManager.importFromStream(ByteArrayInputStream(baos.toByteArray()), filesRoot = filesRoot)
 
         coVerify(exactly = 0) { diaryRepository.createEntry(any()) }
+    }
+
+    @Test
+    fun importFromStream_doesNotSkipDifferentEntryThatShareADatabaseId() = runBlocking {
+        // Regression: ids are auto-numbered per install. A backup from another phone can
+        // contain id 99 for a completely different entry than the local id 99.
+        val manifest = """[{"id":99,"title":"Trip","body":"B","mood":"CALM","tags":[],
+            "createdAt":1,"updatedAt":2,"voiceNotes":[],"photos":[]}]"""
+        val baos = ByteArrayOutputStream()
+        java.util.zip.ZipOutputStream(baos).use { zos ->
+            zos.putNextEntry(java.util.zip.ZipEntry("manifest.json"))
+            zos.write(manifest.toByteArray())
+            zos.closeEntry()
+        }
+
+        coEvery { diaryRepository.getAllEntriesSync() } returns listOf(
+            DiaryEntry(id = 99L, title = "Existing", body = "x", mood = Mood.CALM, tags = emptyList(), createdAt = 5000L, updatedAt = 5000L, deletedAt = null)
+        )
+        coEvery { diaryRepository.createEntry(any()) } returns 55L
+
+        backupManager.importFromStream(ByteArrayInputStream(baos.toByteArray()), filesRoot = filesRoot)
+
+        coVerify(exactly = 1) { diaryRepository.createEntry(any()) }
     }
 
     @Test
